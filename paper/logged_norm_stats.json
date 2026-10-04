@@ -1,0 +1,70 @@
+{
+ "note": "Per-channel normalization statistics as printed in each kernel log; extracted once from the logs, which are not shipped.",
+ "runs": {
+  "bnadapt_seed1": {
+   "mean": [
+    0.4914004,
+    0.4821564,
+    0.44653141
+   ],
+   "std": [
+    0.24703227,
+    0.24348508,
+    0.26158848
+   ],
+   "source": "kernel log of run 'bnadapt_seed1'"
+  },
+  "bnadapt_blurheat_seed1": {
+   "mean": [
+    0.4914004,
+    0.4821564,
+    0.44653141
+   ],
+   "std": [
+    0.24703227,
+    0.24348508,
+    0.26158848
+   ],
+   "source": "kernel log of run 'bnadapt_blurheat_seed1'"
+  },
+  "tent_fixed_seed1": {
+   "mean": [
+    0.4914004,
+    0.4821564,
+    0.44653141
+   ],
+   "std": [
+    0.24703227,
+    0.24348508,
+    0.26158848
+   ],
+   "source": "kernel log of run 'tent_fixed_seed1'"
+  },
+  "fog_ablation_seed1": {
+   "mean": [
+    0.4914004,
+    0.4821564,
+    0.44653141
+   ],
+   "std": [
+    0.24703227,
+    0.24348508,
+    0.26158848
+   ],
+   "source": "kernel log of run 'fog_ablation_seed1'"
+  },
+  "tiny_imagenet_seed1": {
+   "mean": [
+    0.1024,
+    0.1024,
+    0.1024
+   ],
+   "std": [
+    0.32,
+    0.32,
+    0.32
+   ],
+   "source": "kernel log of run 'tiny_imagenet_seed1'"
+  }
+ }
+}

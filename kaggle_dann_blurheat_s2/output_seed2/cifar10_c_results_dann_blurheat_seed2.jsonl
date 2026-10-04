@@ -1,0 +1,7 @@
+{"family": "blur_heat", "t": 0.0, "seed": 2, "err_dann": 0.1753999888896942, "is_train_severity": true}
+{"family": "blur_heat", "t": 0.05, "seed": 2, "err_dann": 0.2084999978542328, "is_train_severity": true}
+{"family": "blur_heat", "t": 0.1, "seed": 2, "err_dann": 0.23330000042915344, "is_train_severity": true}
+{"family": "blur_heat", "t": 0.25, "seed": 2, "err_dann": 0.3414999842643738, "is_train_severity": false}
+{"family": "blur_heat", "t": 0.5, "seed": 2, "err_dann": 0.4624999761581421, "is_train_severity": false}
+{"family": "blur_heat", "t": 1.0, "seed": 2, "err_dann": 0.6121000051498413, "is_train_severity": false}
+{"family": "blur_heat", "t": 2.0, "seed": 2, "err_dann": 0.7358999848365784, "is_train_severity": false}
