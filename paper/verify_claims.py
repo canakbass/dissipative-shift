@@ -260,6 +260,60 @@ word("joint level is Bonferroni at 5%", "holds jointly with probability at least
      "0.05 / 12" in src("paper/facts.py") and "0.05 / 6" in src("paper/facts.py"), cls="design")
 word("mechanism rejected per prereg condition", "rejected, as the pre-registered condition required",
      "hypothesis is WRONG" in src("PREREG_v4_fog_ablation.md") and max(abl[k]["rec"] for k in abl if k.startswith("fog_drift") and "rec" in abl[k]) > 30, cls="design")
+word("abstract: three seeds per condition", "On CIFAR-10, with three seeds per condition",
+     F("adam_main_seeds") == [1, 2, 3] and F("fjf_pairs")[0]["seeds"] == [1, 2, 3] and all(v["n"] == 3 for k, v in F("blur_factorial").items()))
+# =========================================================================== first-layer padding (oct5)
+_P10, _P100 = F("pad_c10"), F("pad_c100")
+_pv = sorted(_P10["zeros"]["frozen"], key=float)
+_outer2 = [k for k in _pv if _P10["reflect"]["frozen"][k]["positive"] and _P10["circular"]["frozen"][k]["positive"]]
+_hz = max(_P10["zeros"]["frozen"][k]["gap"] for k in _outer2)
+_hc = F("pad_c10_commuting_outer")
+for lab, tpl in (("abstract", "cost one frozen model, trained for 200 epochs, $@$ to $@$ more error in one\ncase"),
+                 ("contribution", "errs $@$ to\n$@$ more on one member"),
+                 ("section", "cost a frozen classifier trained for 200 epochs\n$@$ to $@$ more error"),
+                 ("discussion", "errs $@$ to $@$ more on one of\nthem"),
+                 ("conclusion", "epochs, $@$ to $@$ more error in one case than in the other once it\nextrapolates")):
+    check(f"headline range ({lab})", tpl, _hc[0], _hz)
+word("headline: the two farthest pairs, every seed", "at the two pairs farthest beyond its training range, in each\nseed",
+     len(_outer2) == 2 and all(min(_P10[k]["frozen"][q]["gaps"]) > 0 for k in ("zeros", "reflect", "circular") for q in _outer2))
+for tpl in ("about a fifth of that excess comes from the zero padding", "about a fifth of it from the zero padding",
+            "Zero padding thus accounts for\nabout a fifth of the frozen gap"):
+    word(f"fifth: {tpl[:30]}", tpl, 0.17 < F("pad_c10_zero_share") < 0.25)
+word("eighth on CIFAR-100", "on CIFAR-100, for about an eighth, with all three\nouter pairs still passing",
+     0.10 < F("pad_c100_zero_share") < 0.15 and F("pad_c100_outer_positive")["reflect"] == 3 == F("pad_c100_outer_positive")["circular"])
+word("normalization removes it with commuting padding", "test-time\nnormalization removes it entirely",
+     max(F("pad_c10_bn_commuting_max"), F("pad_c100_bn_commuting_max")) < 0.005
+     and not any(_P[k]["bnadapt"][q]["positive"] for _P in (_P10, _P100) for k in ("reflect", "circular", "haze") for q in _pv))
+_mcf = F("matched_contrast")
+check("border mismatch growth", "about $@$ to $@$ for the drift members and\n$@$ to $@$ for the diffusion members",
+      *[(1 - _mcf[k]["drift"]) / _mcf[k]["drift"] for k in ("0.089", "0.490")], *[(1 - _mcf[k]["diffuse"]) / _mcf[k]["diffuse"] for k in ("0.089", "0.490")])
+check("padding: frozen gaps", "the frozen model's gap at $v = @$ and\n$@$ falls from $@$ and $@$ to $@$ to $@$, still in every seed",
+      float(_outer2[0]), float(_outer2[1]), _P10["zeros"]["frozen"][_outer2[0]]["gap"], _P10["zeros"]["frozen"][_outer2[1]]["gap"], *_hc)
+_v089 = [k for k in _pv if k not in _outer2 and float(k) > 0.05][0]
+check("padding: v=0.089 drops", "at $v = @$ the gap no longer passes the rule", float(_v089))
+word("padding: v=0.089 drops (condition)", "the gap no longer passes the rule",
+     _P10["zeros"]["frozen"][_v089]["positive"] and not _P10["reflect"]["frozen"][_v089]["positive"] and not _P10["circular"]["frozen"][_v089]["positive"])
+check("padding: clean error", "clean error barely\nmoves ($@$, against $@$ with either padding)",
+      _P10["zeros"]["clean_frozen"], _P10["reflect"]["clean_frozen"])
+word("padding: either padding same clean error", "against $0.114$ with either padding",
+     round(_P10["reflect"]["clean_frozen"], 3) == round(_P10["circular"]["clean_frozen"], 3))
+check("padding: standardization clean error", "clean error rising from $@$ to $@$", _P10["zeros"]["clean_frozen"], _P10["standardize"]["clean_frozen"])
+check("padding: BN-adapt closes", "BN-adapt closes the gap at every pair, to within $@$ on CIFAR-10 and on\nCIFAR-100",
+      max(F("pad_c10_bn_commuting_max"), F("pad_c100_bn_commuting_max")), rnd="up")
+word("adaptation leaves a gap with zero padding", "a gap remains after adaptation",
+     all(r["bn_gap"] > 0.05 and r["tent_gap"] > 0.05 for r in F("fjf_adapt")))
+word("TENT in that run used Adam", "(Adam). This residual is",
+     "torch.optim.Adam(params, lr=TENT_LR)" in src("kaggle_oct3_runner/runner.py"), cls="design")
+check("rules: padding counts", "with both paddings $@$ of $@$ outer pairs pass on CIFAR-10 and $@$ of $@$ on CIFAR-100",
+      min(F("pad_c10_outer_positive")["reflect"], F("pad_c10_outer_positive")["circular"]), 3,
+      min(F("pad_c100_outer_positive")["reflect"], F("pad_c100_outer_positive")["circular"]), 3)
+_bn_clean = not any(_P[k]["bnadapt"][q]["positive"] for _P in (_P10, _P100) for k in ("reflect", "circular", "haze") for q in _pv)
+word("discussion: normalization fails only because of zero padding", "test-time normalization fails to remove the\nexcess only because of the first layer's zero padding",
+     _bn_clean and all(_P10["zeros"]["bnadapt"][q]["positive"] for q in _pv))
+word("appendix: BN-adapt gap disappears", "Under BN-adapt the gap disappears with every commuting padding, at every pair, on\nboth data sets", _bn_clean)
+word("appendix: frozen gap persists", "In the frozen model it persists at the two outer pairs of CIFAR-10\nand the three outer pairs of CIFAR-100",
+     len(_outer2) == 2 and F("pad_c100_outer_positive")["reflect"] == 3 == F("pad_c100_outer_positive")["circular"])
+check("padding table header", "Dataset & First-layer padding & $@$ & $@$ & $@$ & $@$ & $@$ & $@$ & $@$ & $@$", *[float(k) for k in _pv + _pv])
 # =========================================================================== introduction
 check("contribution asym", "measured frozen error matches its closed-form prediction to within $@$ at\nevery severity", F("kt_asym_predmiss_max"), rnd="up")
 
@@ -860,7 +914,7 @@ word("floor contributes little", "the floor contributes little",
 check("reflect vs periodic small t", "than the periodic one\n($@$ against $@$ at $t = 0.5$)", _main_ctl[0.5], _B["blurfft_s0_a0@0.5"]["bn_removes"][0])
 word("reflect leaves more at t<=0.5", "At $t \\le 0.5$ the\nreflect-padded blur leaves more", all(_main_ctl[t] > _B[f"blurfft_s0_a0@{t}"]["bn_removes"][0] for t in (0.25, 0.5)))
 
-word("abstract: factorial traces gap to noise", "a gap a factorial run traces to the\nheat equation's noise term",
+word("abstract: factorial traces gap to noise", "an exploratory\nfactorial run traces to the heat equation's noise term",
      F("blur_factorial")["blurfft_s15_a0@2.0"]["bn_removes"][0] < 0.1 < F("blur_factorial")["blurfft_s0_a01@2.0"]["bn_removes"][0])
 noted("joint model added after the first results", "The joint model was added after the results\nof the first two were known",
       "chronology of the runs, recorded in the run plan; not reproducible from the result files")
@@ -923,12 +977,6 @@ word("limitations: gaps shrink and persist", "its gaps shrink and persist",
 _ff = sorted(F("fjf_pairs"), key=lambda r: r["v"])
 _head = [r["d_raw_mean"] for r in _ff if r["v"] > 0.15]
 _wl2 = F("wiener_lfl")["2.0"]["cert_slack"]
-for lab, tpl in (("abstract", "cost one frozen model, trained for 200 epochs, up to $@$ more error in one case"),
-                 ("contribution", "errs up to $@$ more on\none member"),
-                 ("section", "cost a frozen classifier trained for 200 epochs up\nto $@$ more error"),
-                 ("discussion", "errs up to $@$ more on one of them"),
-                 ("conclusion", "epochs, up to $@$ more error in one case than in the other once it extrapolates")):
-    check(f"headline up to ({lab})", tpl, max(_head))
 check("limitations: slack ranges", "certified from below, by up\nto $@$ in the dissipative families and $@$ in the control", F("cert_all_max"),
       max(WL["2.0"]["cert_slack_joint"]), rnd="down")
 word("abstract: CIFAR-100 both", "Both comparisons hold on\nCIFAR-100", F("c100_blur_ratio_bn") > 3 and F("fjf100_pairs_npos") >= 2)
@@ -978,16 +1026,9 @@ check("separate training contrasts", "$@$, $@$ and $@$ for the drift model, $@$ 
 _ad = F("fjf_adapt")
 check("adaptation gaps", "with BN-adapt the gap is $@$ to $@$ at every pair, including the one\ninside the training range, and with TENT $@$ to $@$",
       min(r["bn_gap"] for r in _ad), max(r["bn_gap"] for r in _ad), min(r["tent_gap"] for r in _ad), max(r["tent_gap"] for r in _ad))
-word("adaptation on the 200-epoch model, TENT with Adam", "applied to the 200-epoch model with TENT using Adam",
-     "fog-joint-full" in src("paper/facts.py") and "torch.optim.Adam(params, lr=TENT_LR)" in src("kaggle_oct3_runner/runner.py"), cls="design")
-word("adaptation gaps positive everywhere", "does not close\nit", all(r["bn_gap"] > 0.05 and r["tent_gap"] > 0.05 for r in _ad))
 _pp = sorted(F("fjf_pairs"), key=lambda r: r["v"])
 _raised = [ad["bn_drift"] > ad["frozen_drift"] and ad["bn_drift"] - ad["bn_gap"] > pr["err_diffuse"] for ad, pr in zip(_ad, _pp)]
 _lowered = [ad["bn_drift"] < ad["frozen_drift"] and ad["bn_drift"] - ad["bn_gap"] < pr["err_diffuse"] for ad, pr in zip(_ad, _pp)]
-check("BN-adapt raises error", "to $@$ against $@$ for the frozen model at the drift member inside the training range, and lowers both only at $v = @$",
-      _ad[0]["bn_drift"], _ad[0]["frozen_drift"], _pp[-1]["v"])
-word("BN-adapt raises at the inner three, lowers at the last", "raises both members' error at the three inner pairs",
-     _raised == [True, True, True, False] and _lowered == [False, False, False, True])
 # the decision-rule table
 _fj15 = sorted(F("fj_pairs"), key=lambda r: r["v"]); _fj100 = sorted(F("fj100_pairs"), key=lambda r: r["v"])
 check("limitations: c100 15-epoch in-range gap", "on\nCIFAR-100 at 15 epochs it is $@$ inside it", _fj100[0]["d_raw_mean"])

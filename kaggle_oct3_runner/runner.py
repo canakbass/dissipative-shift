@@ -29,6 +29,7 @@ Delta(t) comes out spuriously negative inside the training horizon.
 The semigroup scope is fixed in SEMIGROUP_SCOPE.md.
 """
 import copy
+import glob
 import json
 import math
 import os
@@ -114,6 +115,10 @@ JOBS = {
     # the joint model at the standard CIFAR budget: 200 epochs, per-sample augmentation
     "fog_joint_full": {},
     "c100_fog_joint_full": {},
+    # inference only: the saved 200-epoch joint models with the first convolution's
+    # padding changed (rule written before the run: oct5/PLAN.md)
+    "padding_test": {},
+    "c100_padding_test": {},
 }
 FOG_JOINT_JOBS = ("fog_joint", "c100_fog_joint", "fog_joint_full", "c100_fog_joint_full")
 FULL_BUDGET = JOB.endswith("_full")
@@ -709,6 +714,83 @@ def run_fog_joint(x_train_raw, y_train, x_eval_raw, y_eval, rng):
     return rows
 
 
+PADDING_JOBS = ("padding_test", "c100_padding_test")
+PAD_KINDS = ("zeros", "reflect", "circular", "haze", "standardize")
+
+
+class HazePadConv(nn.Module):
+    """The first convolution with its one-pixel border filled with the haze point
+    A = 1 (in normalized units, per channel) instead of zeros."""
+
+    def __init__(self, conv, fill):
+        super().__init__()
+        self.conv = conv
+        self.register_buffer("fill", torch.tensor(fill, dtype=torch.float32).view(1, 3, 1, 1))
+
+    def forward(self, x):
+        xp = F.pad(x, (1, 1, 1, 1))
+        inside = torch.zeros_like(xp[:, :1])
+        inside[..., 1:-1, 1:-1] = 1.0
+        xp = xp * inside + self.fill * (1.0 - inside)
+        return F.conv2d(xp, self.conv.weight, None, self.conv.stride, 0)
+
+
+def padding_variant(model, kind):
+    """A copy of the model whose first convolution pads differently; deeper layers
+    are unchanged. Zeros in normalized units is the data set's mean colour."""
+    m = copy.deepcopy(model)
+    if kind in ("reflect", "circular"):
+        m.conv1.padding_mode = kind
+    elif kind == "haze":
+        m.conv1 = HazePadConv(m.conv1, ((1.0 - NORM_MEAN) / NORM_STD).astype(np.float32))
+    return m.to(DEVICE)
+
+
+def standardize_images(x):
+    """Per-image scalar standardization in pixel units, rescaled to the data set's
+    average mean and spread; invariant to the scalar affine map that relates two
+    fog members of equal v, so it makes them identically distributed."""
+    mu = x.mean(axis=(1, 2, 3), keepdims=True, dtype=np.float64)
+    sd = x.std(axis=(1, 2, 3), keepdims=True, dtype=np.float64)
+    return ((x - mu) / sd * float(NORM_STD.mean()) + float(NORM_MEAN.mean())).astype(np.float32)
+
+
+def run_padding_test(x_eval_raw, y_eval, rng):
+    """Loads the saved 200-epoch joint model of this seed (attached as a kernel source)
+    and evaluates both members of every matched pair under each first-layer padding,
+    frozen and with BN-adapt, on one set of corrupted images per member."""
+    print("\n########## padding test: saved 200-epoch joint model ##########", flush=True)
+    prefix = "c100_" if DATASET == "cifar100" else ""
+    pattern = f"/kaggle/input/**/fogjoint_{prefix}fog_joint_full_seed{SEED}.pt"
+    hits = sorted(glob.glob(pattern, recursive=True))
+    assert hits, f"weights not found: {pattern}"
+    model = ResNet18(N_CLASSES).to(DEVICE)
+    model.load_state_dict(torch.load(hits[0], map_location=DEVICE))
+    print(f"  weights: {hits[0]}", flush=True)
+    variants = {k: padding_variant(model, "zeros" if k == "standardize" else k) for k in PAD_KINDS}
+    rows = []
+    for kind, mv in variants.items():
+        xc = standardize_images(x_eval_raw) if kind == "standardize" else x_eval_raw
+        rows.append(dict(job=JOB, dataset=DATASET, seed=SEED, family="clean", t=0.0, pad=kind,
+                         err_frozen=eval_error(mv, xc, y_eval), err_bnadapt=bn_adapt_eval_error(mv, xc, y_eval)))
+    for td, tD in FOG_COMMON_PAIRS:
+        for fam, t in (("fog_drift", td), ("fog_diffuse", tD)):
+            x_t = corrupt(x_eval_raw, t, fam, rng)
+            x_inv = fog_invert(x_t, t, fam)
+            for kind, mv in variants.items():
+                xs = standardize_images(x_t) if kind == "standardize" else x_t
+                xi = standardize_images(x_inv) if kind == "standardize" else x_inv
+                r = dict(job=JOB, dataset=DATASET, seed=SEED, family=fam, t=t, v=fog_v(fam, t), pad=kind,
+                         weights=os.path.basename(hits[0]),
+                         err_frozen=eval_error(mv, xs, y_eval), err_frozen_inv=eval_error(mv, xi, y_eval),
+                         err_bnadapt=bn_adapt_eval_error(mv, xs, y_eval),
+                         err_bnadapt_inv=bn_adapt_eval_error(mv, xi, y_eval))
+                rows.append(r)
+                print(f"  {fam:<11} t={t:<7} pad={kind:<11} frozen={r['err_frozen']:.4f} inv={r['err_frozen_inv']:.4f} "
+                      f"bn={r['err_bnadapt']:.4f} bn_inv={r['err_bnadapt_inv']:.4f}", flush=True)
+    return rows
+
+
 def write_jsonl(rows, path):
     with open(path, "w") as f:
         for r in rows:
@@ -764,6 +846,8 @@ def main():
 
     all_rows = []
     t_start = time.time()
+    if JOB in PADDING_JOBS:
+        all_rows.extend(run_padding_test(x_test, y_test, rng))
     if JOB in FOG_JOINT_JOBS:
         all_rows.extend(run_fog_joint(x_train, y_train, x_test, y_test, rng))
     if JOB in FOG_COMMON_JOBS:
@@ -774,7 +858,7 @@ def main():
 
     write_jsonl(all_rows, f"/kaggle/working/{DATASET}_c_results_{RUN_TAG}.jsonl")
     try:
-        if JOB not in FOG_COMMON_JOBS + FOG_JOINT_JOBS:
+        if JOB not in FOG_COMMON_JOBS + FOG_JOINT_JOBS + PADDING_JOBS:
             try_plot(all_rows, f"/kaggle/working/{DATASET}_c_delta_{RUN_TAG}.png")
     except Exception as e:  # a plotting error must never cost the results
         print(f"(plot skipped: {e})", flush=True)

@@ -248,7 +248,7 @@ print("matched_table.tex written")
 C1 = _rows("c100-fog-common-s*/output/cifar100_c_results_c100_fog_common_seed*.jsonl")
 CJ = _rows("c100-fog-joint-s*/output/cifar100_c_results_c100_fog_joint_seed*.jsonl")
 TF = _rows("tin-fog-common-s*/output/tin_results_tin_fog_common_seed*.jsonl")
-lines = [r"\begin{table}[t]",
+lines = [r"\begin{table}[!htbp]",
          r"\caption{Fog pairs matched in equivalent noise variance $v$ on CIFAR-100 (three seeds) and Tiny-ImageNet (one seed); means. The two members of each pair have the same Bayes risk. Models as in Table~\ref{tab:matched}, trained for 15 epochs; the Tiny-ImageNet run has no joint model and omits the pair at $v = 0.042$.}",
          r"\label{tab:scale}", r"\centering\footnotesize\setlength{\tabcolsep}{4pt}",
          r"\begin{tabular}{lccccccc}", r"\toprule",
@@ -303,6 +303,34 @@ lines += [r"\bottomrule", r"\end{tabular}", r"\end{table}"]
 with open(f"{OUT}/budget_table.tex", "w") as f:
     f.write("\n".join(lines) + "\n")
 print("budget_table.tex written")
+
+# ---------------- first-layer padding test: gaps of the 200-epoch joint model ----------------
+_facts = json.load(open(f"{BASE}/paper/facts.json"))
+if "pad_c10" in _facts and "pad_c100" in _facts:
+    names = {"zeros": "zero (as trained)", "reflect": "reflect", "circular": "circular", "haze": "haze value",
+             "standardize": "standardized input"}
+    lines = [r"\begin{table}[!htbp]",
+             r"\caption{The 200-epoch joint model with its first convolution padded in five ways, at inference only: gap between the drift and the diffusion member of each matched fog pair (error on the drift member minus error on the diffusion member), three-seed means. A star marks a pair that passes the decision rule of Section~\ref{sec:fog-ablation}. Reflect, circular and haze-valued padding commute with the affine map relating the two members; zero padding, which in normalized units is the data set's mean colour, does not. Standardizing each image makes the two members identically distributed.}",
+             r"\label{tab:padding}",
+             r"\centering\scriptsize\setlength{\tabcolsep}{3pt}",
+             r"\begin{tabular}{llcccccccc}", r"\toprule",
+             r" & & \multicolumn{4}{c}{Frozen, at $v =$} & \multicolumn{4}{c}{BN-adapt, at $v =$} \\",
+             r"\cmidrule(lr){3-6}\cmidrule(lr){7-10}"]
+    vs = sorted(_facts["pad_c10"]["zeros"]["frozen"], key=float)
+    lines.append(r"Dataset & First-layer padding & " + " & ".join(f"${v}$" for v in vs + vs) + r" \\")
+    lines.append(r"\midrule")
+    for tag, ds in (("pad_c10", "CIFAR-10"), ("pad_c100", "CIFAR-100")):
+        for k in ("zeros", "reflect", "circular", "haze", "standardize"):
+            cells = []
+            for key in ("frozen", "bnadapt"):
+                for v in vs:
+                    g = _facts[tag][k][key][v]
+                    cells.append(f"${g['gap']:+.3f}$" + (r"$^\ast$" if g["positive"] else ""))
+            lines.append(f"{ds} & {names[k]} & " + " & ".join(cells) + r" \\")
+    lines += [r"\bottomrule", r"\end{tabular}", r"\end{table}"]
+    with open(f"{OUT}/padding_table.tex", "w") as f:
+        f.write("\n".join(lines) + "\n")
+    print("padding_table.tex written")
 
 # ---------------- summary stats used in the main text (printed for manual transcription) ----------------
 print("\n--- summary numbers quoted in the main text ---")

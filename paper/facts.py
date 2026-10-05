@@ -887,6 +887,57 @@ def clean(o):
     return o
 
 
+# --- first-layer padding test (rule: oct5/PLAN.md, written before the runs): the saved
+# 200-epoch joint models evaluated with the first convolution padded in five ways
+PAD_KINDS = ("zeros", "reflect", "circular", "haze", "standardize")
+
+
+def _pad_pairs(rows):
+    out = {}
+    for r in rows:
+        if r["family"] != "clean":
+            out.setdefault(round(r["v"], 3), {}).setdefault(r["seed"], {})[r["family"]] = r
+    return out
+
+
+def _pad_judge(by_seed, key):
+    ss = sorted(by_seed)
+    raw = [by_seed[s]["fog_drift"][f"err_{key}"] - by_seed[s]["fog_diffuse"][f"err_{key}"] for s in ss]
+    inv = [by_seed[s]["fog_drift"][f"err_{key}_inv"] - by_seed[s]["fog_diffuse"][f"err_{key}_inv"] for s in ss]
+    pos = (len(raw) == 3 and (all(x > 0 for x in raw) or all(x < 0 for x in raw))
+           and all(abs(a) > abs(b) for a, b in zip(raw, inv)) and abs(mean(raw)) > sd(raw))
+    return dict(gap=mean(raw), gaps=raw, floor=max(abs(x) for x in inv), positive=pos)
+
+
+for _tag, _pat in (("c10", "padding-test-s*/output/cifar10_c_results_padding_test_seed*.jsonl"),
+                   ("c100", "c100-padding-test-s*/output/cifar100_c_results_c100_padding_test_seed*.jsonl")):
+    _rows = _oct3(_pat)
+    if len({r["seed"] for r in _rows}) < 3:
+        continue
+    res = {}
+    for k in PAD_KINDS:
+        rk = [r for r in _rows if r["pad"] == k]
+        prs = _pad_pairs(rk)
+        res[k] = dict(clean_frozen=mean([r["err_frozen"] for r in rk if r["family"] == "clean"]),
+                      clean_bnadapt=mean([r["err_bnadapt"] for r in rk if r["family"] == "clean"]),
+                      **{key: {f"{v:.3f}": _pad_judge(prs[v], key) for v in sorted(prs)} for key in ("frozen", "bnadapt")})
+    F[f"pad_{_tag}"] = res
+    _out = [v for v in res["zeros"]["frozen"] if float(v) > 0.05]
+    _pos2 = [v for v in _out if res["reflect"]["frozen"][v]["positive"] and res["circular"]["frozen"][v]["positive"]]
+    F[f"pad_{_tag}_outer_positive"] = {k: sum(res[k]["frozen"][v]["positive"] for v in _out) for k in PAD_KINDS}
+    # share of the frozen gap that the first layer's zero padding accounts for, over the
+    # outer pairs that pass under both commuting paddings
+    _z = sum(res["zeros"]["frozen"][v]["gap"] for v in _pos2)
+    _c = mean([sum(res[k]["frozen"][v]["gap"] for v in _pos2) for k in ("reflect", "circular")])
+    F[f"pad_{_tag}_zero_share"] = 1 - _c / _z
+    F[f"pad_{_tag}_commuting_outer"] = [min(res[k]["frozen"][v]["gap"] for k in ("reflect", "circular") for v in _pos2),
+                                        max(res[k]["frozen"][v]["gap"] for k in ("reflect", "circular") for v in _pos2)]
+    F[f"pad_{_tag}_bn_commuting_max"] = max(abs(res[k]["bnadapt"][v]["gap"]) for k in ("reflect", "circular", "haze")
+                                            for v in res[k]["bnadapt"])
+    F[f"pad_{_tag}_bn_zeros"] = [min(res["zeros"]["bnadapt"][v]["gap"] for v in res["zeros"]["bnadapt"]),
+                                 max(res["zeros"]["bnadapt"][v]["gap"] for v in res["zeros"]["bnadapt"])]
+
+
 out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "facts.json")
 json.dump(clean(F), open(out, "w"), indent=1, sort_keys=True)
 print(f"{len(F)} top-level facts written to {out}")
