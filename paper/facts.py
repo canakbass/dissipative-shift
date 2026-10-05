@@ -459,6 +459,15 @@ ctl0 = _upper([R[("gauss_blur", 0.0)][s]["err_oracle"] for s in (1, 2, 3)])
 F["cert_control_upper"] = ctl0
 F["cert_control"] = {t: _cert([R[("gauss_blur", t)][s]["err_oracle"] for s in (1, 2, 3)], ctl0)
                      for t in held_out("gauss_blur")}
+# joint version of the control bound: Bonferroni over the six errors behind it (the three
+# t = 0 oracles that define the upper bound and the three t = 2 oracles), so the three
+# per-seed bounds hold together at 95%
+_z6 = _norm.ppf(1 - 0.05 / 6)
+_u6 = min(e + _z6 * _se(e) for e in [R[("gauss_blur", 0.0)][s]["err_oracle"] for s in (1, 2, 3)])
+F["control_slack_t2_joint"] = sorted(R[("gauss_blur", 2.0)][s]["err_oracle"] - _z6 * _se(R[("gauss_blur", 2.0)][s]["err_oracle"]) - _u6
+                                     for s in (1, 2, 3))
+F["control_rec_t2_corrected_joint"] = 100 * F["gauss_blur_t2_tent_removes"] / (
+    m("gauss_blur", 2.0, "delta_frozen") + F["control_slack_t2_joint"][0])
 # the control gap correction with margins: the smallest per-seed certified slack at t = 2
 # is a lower bound for every seed, so the true gap exceeds Delta_frozen by at least it
 F["control_slack_t2_margin"] = [min(F["cert_control"][2.0]), max(F["cert_control"][2.0])]
@@ -521,6 +530,11 @@ for t in sorted({r["t"] for r in WL}):
         # certified slack per seed: oracle minus witness minus one-sided margins on both
         row["cert_slack"] = sorted(max(0.0, r["err_oracle"] - _z1 * _se(r["err_oracle"]) - r["err_witness"] - _z1 * _se(r["err_witness"]))
                                    for r in rs)
+        # joint version: Bonferroni over the 12 errors behind the six bounds (oracle and
+        # witness, three seeds, t = 1 and t = 2), so all six hold together at 95%
+        _z12 = _norm.ppf(1 - 0.05 / 12)
+        row["cert_slack_joint"] = sorted(r["err_oracle"] - _z12 * _se(r["err_oracle"]) - r["err_witness"] - _z12 * _se(r["err_witness"])
+                                         for r in rs)
         row["gap"] = sorted(r["err_oracle"] - r["err_witness"] for r in rs)
         row["f32_cost"] = mean([r["err_witness"] - r["err_witness_f64"] for r in rs])
     wl[t] = row
@@ -620,6 +634,33 @@ for t in held_out("blur_heat"):
     if len(tent) == 3:
         dh_adam[t] = mean(D[("blur_heat", t)]) - mean(tent)
 F["dann_heat_vs_tent_adam"] = dh_adam
+
+# --- one run-to-run yardstick for every family: the largest change in a method's
+# three-seed mean between two independent trainings, at held-out severities. Three
+# trainings exist: the main run, the earlier run with TENT at the SGD setting, and the
+# Adam reruns; BN-adapt has no settings and is computed in the main run and the reruns.
+_inv = {v: k for k, v in FAMMAP.items()}
+_bn_cross = {}
+for fam in FAMS:
+    for t in held_out(fam):
+        other = ([r["err_bnadapt"] for r in FX[t]] if fam == "gauss_noise" else
+                 [r["err_bnadapt"] for r in AM if r["family"] == _inv[fam] and r["t"] == t])
+        if len(other) == 3:
+            _bn_cross[f"{fam}@{t}"] = abs(mean([r["err_bnadapt"] for r in R[(fam, t)].values()]) - mean(other))
+F["bn_cross_run"] = _bn_cross
+F["bn_cross_run_max_key"], F["bn_cross_run_max"] = max(_bn_cross.items(), key=lambda kv: kv[1])
+F["yardstick"] = max(F["tent_cross_run_max"], F["bn_cross_run_max"], max(F["heat_tent_yardstick"].values()))
+for v in dann.values():
+    v["resolved_all"] = abs(v["diff"]) > F["yardstick"]
+_orig = [v for k, v in dann.items() if not k.startswith("blur_heat")]
+F["dann_resolved_all"] = sum(v["resolved_all"] for v in _orig)
+F["dann_resolved_all_worse"] = sum(v["resolved_all"] and v["diff"] > 0 for v in _orig)
+_res = [v["diff"] for v in _orig if v["resolved_all"]]
+F["dann_resolved_all_min"], F["dann_resolved_all_max"] = min(_res), max(_res)
+F["dann_unresolved_all_keys"] = sorted(k for k, v in dann.items() if not k.startswith("blur_heat") and not v["resolved_all"])
+F["dann_heat_within_yardstick"] = (all(abs(x) <= F["yardstick"] for tag in dh for x in dh[tag].values())
+                                   and all(abs(x) <= F["yardstick"] for x in dh_adam.values()))
+F["dann_vs_tent"] = dann
 
 # --- Tiny-ImageNet rerun: Adam, float64 statistics (results rebuilt from the kernel log)
 TA = _oct3("tin-adam-s*/output/tin_results_tin_adam_seed*.jsonl")
@@ -755,14 +796,14 @@ for tag, pat in (("joint15", "fog-joint-s*/output/cifar10_c_results_fog_joint_se
     for r in _oct3(pat):
         if r["family"] != "clean":
             _pts.append((f"{tag}/{r['family']}", "witness", r["v"], r["seed"], r["err_frozen"]))
-_wit = [(src, v, e) for src, k, v, s_, e in _pts]
+_wit = [(src, v, e, s_) for src, k, v, s_, e in _pts]
 _zK = _norm.ppf(1 - 0.05 / len(_wit))
 cert_all = []
 for src, k, v, s_, e in _pts:
     if k != "oracle" or v == 0:
         continue
-    u, who = min((e2 + _zK * _se(e2), src2) for src2, v2, e2 in _wit if v2 >= v - 1e-12)
-    cert_all.append(dict(oracle=src, v=v, seed=s_, slack=e - _z1 * _se(e) - u, witness=who))
+    u, who, wv, ws = min((e2 + _zK * _se(e2), src2, v2, s2) for src2, v2, e2, s2 in _wit if v2 >= v - 1e-12)
+    cert_all.append(dict(oracle=src, v=v, seed=s_, slack=e - _z1 * _se(e) - u, witness=who, witness_v=wv, witness_seed=ws))
 _pos = [c for c in cert_all if c["slack"] > 0]
 F["cert_all_n"], F["cert_all_pos"], F["cert_all_K"] = len(cert_all), len(_pos), len(_wit)
 F["cert_all_z"] = float(_zK)
@@ -771,6 +812,11 @@ F["cert_all_max"] = max(c["slack"] for c in _pos)
 F["cert_all_by_joint200"] = sum(c["witness"].startswith("joint200") for c in _pos)
 F["cert_all_by_witness"] = {w: sum(c["witness"] == w for c in _pos) for w in sorted({c["witness"] for c in _pos})}
 F["cert_all_by_15epoch"] = sum(not c["witness"].startswith("joint200") for c in _pos)   # every other witness is a 15-epoch model
+_o15 = [c for c in _pos if not c["witness"].startswith("joint200")]
+F["cert_15epoch_same_v"] = sum(abs(c["witness_v"] - c["v"]) <= 1e-9 * max(c["v"], 1e-12) for c in _o15)
+F["cert_15epoch_larger_v"] = sum(c["witness_v"] > c["v"] * (1 + 1e-9) for c in _o15)
+F["cert_15epoch_detail"] = [dict(oracle=c["oracle"], v=c["v"], seed=c["seed"], witness=c["witness"], witness_v=c["witness_v"],
+                                 witness_seed=c["witness_seed"]) for c in _o15]
 _v_train = min(r["v"] for r in F["fc_pairs"])   # the pair at which both members are training severities
 _c042 = [c["slack"] for c in _pos if c["oracle"].startswith("fc/") and abs(c["v"] - _v_train) < 1e-6 * _v_train]
 F["cert_fc_042_min"], F["cert_fc_042_max"] = min(_c042), max(_c042)
