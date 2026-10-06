@@ -314,6 +314,38 @@ word("appendix: BN-adapt gap disappears", "Under BN-adapt the gap disappears wit
 word("appendix: frozen gap persists", "In the frozen model it persists at the two outer pairs of CIFAR-10\nand the three outer pairs of CIFAR-100",
      len(_outer2) == 2 and F("pad_c100_outer_positive")["reflect"] == 3 == F("pad_c100_outer_positive")["circular"])
 check("padding table header", "Dataset & First-layer padding & $@$ & $@$ & $@$ & $@$ & $@$ & $@$ & $@$ & $@$", *[float(k) for k in _pv + _pv])
+
+# --- CIFAR-10-C padding with pretrained models
+_B, _BM = F("bench"), F("bench_models")
+_bh = [_B[f"{m_}|{c_}|bnadapt"] for m_ in _BM for c_ in ("contrast", "brightness", "fog")]
+_n_up, _n_down = sum(x["G"] > 0 for x in _bh), sum(x["G"] < 0 for x in _bh)
+word("bench: three models", "With three\nstandard pretrained CIFAR-10 models", len(_BM) == 3, cls="design")
+check("bench: discussion cells", "lowers BN-adapt's error in\n$@$ of the $@$ model--corruption cells for contrast, brightness and fog and raises it\nin the other $@$ (most, by $@$, for ResNet-56 under contrast)",
+      F("bench_cells_helped"), len(_bh), F("bench_cells_hurt"), F("bench_worst"))
+word("bench: largest loss is ResNet-56 contrast", "for ResNet-56 under contrast)",
+     min(_bh, key=lambda x: x["G"]) is _B["cifar10_resnet56|contrast|bnadapt"])
+word("bench: cell counts agree in sign and at 3 SE", "model--corruption cells",
+     (_n_up, _n_down) == (F("bench_cells_helped"), F("bench_cells_hurt")) and F("bench_cells_helped") + F("bench_cells_hurt") == len(_bh))
+check("bench: clean cost", "BN-adapt's error on clean images, by $@$ to $@$", *F("bench_clean_cost"))
+check("bench: rules row", "reflect padding helps BN-adapt in $@$ of $@$ model--corruption cells and hurts in $@$",
+      F("bench_cells_helped"), len(_bh), F("bench_cells_hurt"))
+word("bench: rejected for all three", "Rejected for contrast, brightness and fog", set(F("bench_verdict").values()) == {"rejected"})
+word("bench: hypothesis rejected (appendix)", "The hypothesis is rejected for all three corruptions", set(F("bench_verdict").values()) == {"rejected"})
+_vc = _B["cifar10_vgg13_bn|contrast|bnadapt"]
+word("bench: only VGG-13-BN contrast helps", "Reflect padding helps BN-adapt only for VGG-13-BN under\ncontrast",
+     [k for k, x in _B.items() if k.endswith("|bnadapt") and "|clean|" not in k and x["G"] > 0] == ["cifar10_vgg13_bn|contrast|bnadapt"])
+check("bench: VGG contrast gain", "contrast, by $@$, almost all of it from the most severe level, where the gain is\n$@$",
+      _vc["G"], _vc["per_severity"][4])
+word("bench: almost all from severity 5", "almost all of it from the most severe level", _vc["per_severity"][4] / 5 > 0.9 * _vc["G"])
+word("bench: hurts under noise and TENT", "it hurts in the other eight cells, under Gaussian noise, and under TENT for\nall three corruptions",
+     F("bench_cells_hurt") == 8 and all(_B[f"{m_}|gaussian_noise|bnadapt"]["G"] < 0 for m_ in _BM)
+     and all(_B[f"cifar10_resnet20|{c_}|tent"]["G"] < 0 for c_ in ("contrast", "brightness", "fog")))
+check("bench: frozen within", "gain within\n$@$ under contrast, brightness and fog",
+      max(abs(_B[f"{m_}|{c_}|frozen"]["G"]) for m_ in _BM for c_ in ("contrast", "brightness", "fog")), rnd="up")
+word("bench: TENT on ResNet-20 only", "TENT was run for ResNet-20",
+     {k.split("|")[0] for k in _B if k.endswith("|tent")} == {"cifar10_resnet20"}, cls="design")
+word("bench: contrast and brightness deterministic", "contrast and brightness are\ndeterministic",
+     "np.random" not in src("bench/make_cifar10c_subset.py").split("def contrast")[1].split("def main")[0], cls="design")
 # =========================================================================== introduction
 check("contribution asym", "measured frozen error matches its closed-form prediction to within $@$ at\nevery severity", F("kt_asym_predmiss_max"), rnd="up")
 

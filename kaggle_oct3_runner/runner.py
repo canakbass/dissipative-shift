@@ -116,12 +116,17 @@ JOBS = {
     "fog_joint_full": {},
     "c100_fog_joint_full": {},
     # inference only: the saved 200-epoch joint models with the first convolution's
-    # padding changed (rule written before the run: oct5/PLAN.md)
+    # padding changed
     "padding_test": {},
     "c100_padding_test": {},
+    # the joint model trained with reflect padding in its first convolution
+    "fog_joint_full_reflect": {},
 }
-FOG_JOINT_JOBS = ("fog_joint", "c100_fog_joint", "fog_joint_full", "c100_fog_joint_full")
-FULL_BUDGET = JOB.endswith("_full")
+FOG_JOINT_JOBS = ("fog_joint", "c100_fog_joint", "fog_joint_full", "c100_fog_joint_full", "fog_joint_full_reflect")
+FULL_BUDGET = JOB.endswith("_full") or JOB.endswith("_full_reflect")
+# the first convolution's padding; reflect commutes with the scalar affine map between two
+# matched fog members
+CONV1_PADDING = "reflect" if JOB.endswith("_reflect") else "zeros"
 FULL_EPOCHS = 200
 FOG_COMMON_JOBS = ("fog_common", "c100_fog_common")
 # The two Ornstein-Uhlenbeck regimes of the paper's fog ablation (same values as
@@ -274,7 +279,7 @@ class ResNet18(nn.Module):
     def __init__(self, n_classes=10):
         super().__init__()
         self.in_planes = 64
-        self.conv1 = nn.Conv2d(3, 64, 3, 1, 1, bias=False)
+        self.conv1 = nn.Conv2d(3, 64, 3, 1, 1, bias=False, padding_mode=CONV1_PADDING)
         self.bn1 = nn.BatchNorm2d(64)
         self.layer1 = self._make_layer(64, 2, 1)
         self.layer2 = self._make_layer(128, 2, 2)

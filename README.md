@@ -8,7 +8,8 @@ Code, result files and checking scripts for the paper of the same title
 | Path | Contents |
 | --- | --- |
 | `kaggle_*/` | One training and evaluation script per experiment, run as a Kaggle GPU notebook, and the result files it wrote (`output*/`). |
-| `kaggle_oct3_runner/runner.py` | The later runs: matched fog pairs, the joint model at 15 and 200 epochs, the Adam reruns, the blur factorial, CIFAR-100 and Tiny-ImageNet. Their results are in `oct3/*/output/`. |
+| `kaggle_oct3_runner/runner.py` | The later runs: matched fog pairs, the joint model at 15 and 200 epochs, the Adam reruns, the blur factorial, CIFAR-100, Tiny-ImageNet and the first-layer padding test. Their results are in `oct3/*/output/`. |
+| `bench/` | CIFAR-10-C with three pretrained models and the first convolution padded with zeros or reflect: `make_cifar10c_subset.py` generates the four corruptions with the official generator's functions, `padding_cifar10c.py` evaluates, `analyze_bench.py` applies the decision rule. The results are in `oct6/padding-bench/output/bench/`. |
 | `kaggle_oct3_wiener/wiener_lfl.py` | The like-for-like Wiener witness. |
 | `kill_test*.py`, `test_heat_blur.py` | The synthetic checks with closed-form Bayes risk, and the composition check of the heat-equation operator (CPU, minutes). |
 | `certified_extrapolation*.py` | Certified extrapolation of the equivalent noise, synthetic and on CIFAR-10 (CPU). |
@@ -37,7 +38,8 @@ rebuild the tables and figures from the same files.
 The GPU scripts were run on Kaggle notebooks with two T4 GPUs. They take their seed
 from the `RUN_SEED` environment variable, except the two Wiener scripts, which set
 `SEED` at the top; `kaggle_oct3_runner/runner.py` runs the job named by the `JOB`
-line at its top (one of the keys of `JOBS`). Each script downloads CIFAR-10,
+line at its top (one of the keys of `JOBS`); the padding-test jobs load the weights
+saved by the 200-epoch joint runs from `/kaggle/input`. Each script downloads CIFAR-10,
 CIFAR-100 or Tiny-ImageNet itself; paths under `/kaggle/working` can be changed at
 the top of each script. `certified_extrapolation_cifar.py` expects CIFAR-10 in
 `data/cifar-10-batches-py`.

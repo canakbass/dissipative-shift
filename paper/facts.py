@@ -541,7 +541,7 @@ for t in sorted({r["t"] for r in WL}):
 F["wiener_lfl"] = wl
 F["wiener_lfl_seeds"] = sorted({r["seed"] for r in WL})
 
-# --- fog_common: matched-v pairs (decision rule in oct3/PLAN.md, applied by oct3/summarize.py)
+# --- fog_common: matched-v pairs (decision rule fixed before the runs)
 FC = _oct3("fog-common-s*/output/cifar10_c_results_fog_common_seed*.jsonl")
 fcb = {(r["family"], round(r["t"], 4), r["model"], r["seed"]): r for r in FC}
 fc_seeds = sorted({r["seed"] for r in FC})
@@ -667,7 +667,7 @@ TA = _oct3("tin-adam-s*/output/tin_results_tin_adam_seed*.jsonl")
 F["tin_adam"] = {r["t"]: r for r in TA}
 
 
-# --- fog_joint: one model trained on both regimes' v-matched grids (rule: oct3/PLAN.md, 3 Oct 07:15)
+# --- fog_joint: one model trained on both regimes' v-matched grids (rule fixed before the runs)
 def _joint(pattern, key):
     JR = _oct3(pattern)
     if not JR:
@@ -887,7 +887,7 @@ def clean(o):
     return o
 
 
-# --- first-layer padding test (rule: oct5/PLAN.md, written before the runs): the saved
+# --- first-layer padding test (rule fixed before the runs): the saved
 # 200-epoch joint models evaluated with the first convolution padded in five ways
 PAD_KINDS = ("zeros", "reflect", "circular", "haze", "standardize")
 
@@ -936,6 +936,44 @@ for _tag, _pat in (("c10", "padding-test-s*/output/cifar10_c_results_padding_tes
                                             for v in res[k]["bnadapt"])
     F[f"pad_{_tag}_bn_zeros"] = [min(res["zeros"]["bnadapt"][v]["gap"] for v in res["zeros"]["bnadapt"]),
                                  max(res["zeros"]["bnadapt"][v]["gap"] for v in res["zeros"]["bnadapt"])]
+
+
+# --- CIFAR-10-C: first-layer padding with standard pretrained models (rule fixed before the run)
+_bp = os.path.join(BASE, "oct6", "padding-bench", "output", "bench", "padding_cifar10c_results.jsonl")
+if os.path.exists(_bp):
+    _br = [json.loads(line) for line in open(_bp)]
+    _bm = list(dict.fromkeys(r["model"] for r in _br))
+    bench = {}
+    for mdl in _bm:
+        for corr in ("contrast", "brightness", "fog", "gaussian_noise"):
+            for mode in ("bnadapt", "frozen", "tent"):
+                rs = [r for r in _br if r["model"] == mdl and r["corruption"] == corr and r["mode"] == mode]
+                if len(rs) == 5:
+                    g = mean([r["gain"] for r in rs])
+                    se = math.sqrt(sum(r["se"] ** 2 for r in rs)) / 5
+                    bench[f"{mdl}|{corr}|{mode}"] = dict(G=g, SE=se, err_zeros=mean([r["err_zeros"] for r in rs]),
+                                                         err_reflect=mean([r["err_reflect"] for r in rs]),
+                                                         per_severity=[r["gain"] for r in rs])
+        c = [r for r in _br if r["model"] == mdl and r["corruption"] == "clean" and r["mode"] == "bnadapt"][0]
+        bench[f"{mdl}|clean|bnadapt"] = dict(G=c["gain"], SE=c["se"], err_zeros=c["err_zeros"], err_reflect=c["err_reflect"])
+    F["bench"] = bench
+    F["bench_models"] = _bm
+    _verdict = {}
+    for corr in ("contrast", "brightness", "fog"):
+        xs = [bench[f"{m_}|{corr}|bnadapt"] for m_ in _bm]
+        if all(x["G"] > 0 for x in xs) and sum(x["G"] > 3 * x["SE"] for x in xs) >= 2:
+            _verdict[corr] = "supported"
+        elif sum(x["G"] <= x["SE"] for x in xs) >= 2:
+            _verdict[corr] = "rejected"
+        else:
+            _verdict[corr] = "inconclusive"
+    F["bench_verdict"] = _verdict
+    _hyp = [bench[f"{m_}|{c_}|bnadapt"] for m_ in _bm for c_ in ("contrast", "brightness", "fog")]
+    F["bench_cells_helped"] = sum(x["G"] > 3 * x["SE"] for x in _hyp)
+    F["bench_cells_hurt"] = sum(x["G"] < -3 * x["SE"] for x in _hyp)
+    F["bench_worst"] = -min(x["G"] for x in _hyp)
+    F["bench_clean_cost"] = [min(bench[f"{m_}|clean|bnadapt"]["err_reflect"] - bench[f"{m_}|clean|bnadapt"]["err_zeros"] for m_ in _bm),
+                             max(bench[f"{m_}|clean|bnadapt"]["err_reflect"] - bench[f"{m_}|clean|bnadapt"]["err_zeros"] for m_ in _bm)]
 
 
 out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "facts.json")

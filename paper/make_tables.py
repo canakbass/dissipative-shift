@@ -332,6 +332,32 @@ if "pad_c10" in _facts and "pad_c100" in _facts:
         f.write("\n".join(lines) + "\n")
     print("padding_table.tex written")
 
+# ---------------- CIFAR-10-C: first-layer padding with standard pretrained models ----------------
+if "bench" in _facts:
+    B = _facts["bench"]
+    mnames = {"cifar10_resnet20": "ResNet-20", "cifar10_resnet56": "ResNet-56", "cifar10_vgg13_bn": "VGG-13-BN"}
+    cnames = {"clean": "clean", "contrast": "contrast", "brightness": "brightness", "fog": "fog", "gaussian_noise": "Gaussian noise"}
+    lines = [r"\begin{table}[!htbp]",
+             r"\caption{CIFAR-10-C with three standard pretrained CIFAR-10 models, their first convolution padded with zeros (as trained) or reflect at inference. Errors are means over the five severities; the gain is the error with zero padding minus the error with reflect padding, so a positive gain means reflect padding helps, with its paired standard error in parentheses. TENT was run for ResNet-20 only. The corruptions were generated with the functions of the official generator.}",
+             r"\label{tab:bench}",
+             r"\centering\scriptsize\setlength{\tabcolsep}{3pt}",
+             r"\begin{tabular}{llccccc}", r"\toprule",
+             r" & & \multicolumn{3}{c}{BN-adapt} & Frozen & TENT \\",
+             r"\cmidrule(lr){3-5}",
+             r"Model & Corruption & Zero padding & Reflect & Gain & gain & gain \\", r"\midrule"]
+    for m_ in _facts["bench_models"]:
+        for c_ in ("clean", "contrast", "brightness", "fog", "gaussian_noise"):
+            b = B[f"{m_}|{c_}|bnadapt"]
+            fr = B.get(f"{m_}|{c_}|frozen")
+            te = B.get(f"{m_}|{c_}|tent")
+            lines.append(f"{mnames[m_]} & {cnames[c_]} & {b['err_zeros']:.4f} & {b['err_reflect']:.4f} & "
+                         f"${b['G']:+.4f}$ ({b['SE']:.4f}) & " + (f"${fr['G']:+.4f}$" if fr else "---") + " & "
+                         + (f"${te['G']:+.4f}$" if te else "---") + r" \\")
+    lines += [r"\bottomrule", r"\end{tabular}", r"\end{table}"]
+    with open(f"{OUT}/bench_table.tex", "w") as f:
+        f.write("\n".join(lines) + "\n")
+    print("bench_table.tex written")
+
 # ---------------- summary stats used in the main text (printed for manual transcription) ----------------
 print("\n--- summary numbers quoted in the main text ---")
 for k in [("gauss_noise", 0.2), ("gauss_blur", 2.0), ("fog_beer_lambert", 2.0), ("fog_beer_lambert", 4.0)]:
