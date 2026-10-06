@@ -319,32 +319,34 @@ check("padding table header", "Dataset & First-layer padding & $@$ & $@$ & $@$ &
 _B, _BM = F("bench"), F("bench_models")
 _bh = [_B[f"{m_}|{c_}|bnadapt"] for m_ in _BM for c_ in ("contrast", "brightness", "fog")]
 _n_up, _n_down = sum(x["G"] > 0 for x in _bh), sum(x["G"] < 0 for x in _bh)
-word("bench: three models", "With three\nstandard pretrained CIFAR-10 models", len(_BM) == 3, cls="design")
+_bse = [_B[f"{m_}|{c_}|bnadapt"]["SE"] for m_ in _BM for c_ in ("clean", "contrast", "brightness", "fog", "gaussian_noise")]
+check("bench caption: SE range", "gains lie between @ and @", min(_bse), max(_bse), rnd=["down", "up"])
+word("bench caption: every corrupted gain beyond 3 SE", "every BN-adapt gain under a corruption exceeds three times its standard error",
+     all(abs(_B[f"{m_}|{c_}|bnadapt"]["G"]) > 3 * _B[f"{m_}|{c_}|bnadapt"]["SE"] for m_ in _BM for c_ in ("contrast", "brightness", "fog", "gaussian_noise")))
+word("bench: three models", "For three\nstandard pretrained models", len(_BM) == 3, cls="design")
 check("bench: discussion cells", "lowers BN-adapt's error in\n$@$ of the $@$ model--corruption cells for contrast, brightness and fog and raises it\nin the other $@$ (most, by $@$, for ResNet-56 under contrast)",
       F("bench_cells_helped"), len(_bh), F("bench_cells_hurt"), F("bench_worst"))
 word("bench: largest loss is ResNet-56 contrast", "for ResNet-56 under contrast)",
      min(_bh, key=lambda x: x["G"]) is _B["cifar10_resnet56|contrast|bnadapt"])
 word("bench: cell counts agree in sign and at 3 SE", "model--corruption cells",
      (_n_up, _n_down) == (F("bench_cells_helped"), F("bench_cells_hurt")) and F("bench_cells_helped") + F("bench_cells_hurt") == len(_bh))
-check("bench: clean cost", "BN-adapt's error on clean images, by $@$ to $@$", *F("bench_clean_cost"))
-check("bench: rules row", "reflect padding helps BN-adapt in $@$ of $@$ model--corruption cells and hurts in $@$",
+check("bench: clean cost", "as it does on clean\nimages, by $@$ to $@$", *F("bench_clean_cost"))
+check("bench: rules row", "(BN-adapt: better in $@$ of $@$ cells, worse in $@$)",
       F("bench_cells_helped"), len(_bh), F("bench_cells_hurt"))
 word("bench: rejected for all three", "Rejected for contrast, brightness and fog", set(F("bench_verdict").values()) == {"rejected"})
-word("bench: hypothesis rejected (appendix)", "The hypothesis is rejected for all three corruptions", set(F("bench_verdict").values()) == {"rejected"})
+word("bench: hypothesis rejected (appendix)", "hypothesis is rejected for contrast, brightness and fog (Table~\\ref{tab:bench})", set(F("bench_verdict").values()) == {"rejected"})
+_ab = src("bench/analyze_bench.py")
+word("bench: rule as in the analysis script", "supported for a corruption\nif the gain is positive for all three models and above three standard errors for two,\nand rejected if it is at most one standard error for two",
+     'all(x["G"] > 0 for x in s) and sum(x["G"] > 3 * x["SE"] for x in s) >= 2' in _ab and 'sum(x["G"] <= x["SE"] for x in s) >= 2' in _ab, cls="design")
 _vc = _B["cifar10_vgg13_bn|contrast|bnadapt"]
-word("bench: only VGG-13-BN contrast helps", "Reflect padding helps BN-adapt only for VGG-13-BN under\ncontrast",
+word("bench: only VGG-13-BN contrast helps", "the one gain, $0.0028$ for VGG-13-BN under contrast",
      [k for k, x in _B.items() if k.endswith("|bnadapt") and "|clean|" not in k and x["G"] > 0] == ["cifar10_vgg13_bn|contrast|bnadapt"])
-check("bench: VGG contrast gain", "contrast, by $@$, almost all of it from the most severe level, where the gain is\n$@$",
+check("bench: VGG contrast gain", "the one gain, $@$ for VGG-13-BN under contrast, comes\nalmost entirely from the most severe level ($@$ there)",
       _vc["G"], _vc["per_severity"][4])
-word("bench: almost all from severity 5", "almost all of it from the most severe level", _vc["per_severity"][4] / 5 > 0.9 * _vc["G"])
-word("bench: hurts under noise and TENT", "it hurts in the other eight cells, under Gaussian noise, and under TENT for\nall three corruptions",
-     F("bench_cells_hurt") == 8 and all(_B[f"{m_}|gaussian_noise|bnadapt"]["G"] < 0 for m_ in _BM)
-     and all(_B[f"cifar10_resnet20|{c_}|tent"]["G"] < 0 for c_ in ("contrast", "brightness", "fog")))
-check("bench: frozen within", "gain within\n$@$ under contrast, brightness and fog",
+word("bench: almost all from severity 5", "almost entirely from the most severe level", _vc["per_severity"][4] / 5 > 0.9 * _vc["G"])
+check("bench: frozen within", "notice the change under these\nthree (gain within $@$)",
       max(abs(_B[f"{m_}|{c_}|frozen"]["G"]) for m_ in _BM for c_ in ("contrast", "brightness", "fog")), rnd="up")
-word("bench: TENT on ResNet-20 only", "TENT was run for ResNet-20",
-     {k.split("|")[0] for k in _B if k.endswith("|tent")} == {"cifar10_resnet20"}, cls="design")
-word("bench: contrast and brightness deterministic", "contrast and brightness are\ndeterministic",
+word("bench: contrast and brightness deterministic", "contrast and brightness are deterministic",
      "np.random" not in src("bench/make_cifar10c_subset.py").split("def contrast")[1].split("def main")[0], cls="design")
 # =========================================================================== introduction
 check("contribution asym", "measured frozen error matches its closed-form prediction to within $@$ at\nevery severity", F("kt_asym_predmiss_max"), rnd="up")
@@ -847,10 +849,16 @@ FX = {}
 for s in (1, 2, 3):
     for r in load(f"kaggle_tent_fixed_s{s}/output/cifar10_c_results_tentfixed_seed{s}.jsonl"):
         FX.setdefault(r["t"], []).append(r)
-check_table("tab:tent-fixed", [f"{t:.3f} & " + " & ".join([ms([r["err_oracle"] for r in FX[t]])] +
-                               [ms([r[k] for r in FX[t]]) for k in ("delta_frozen", "delta_bnadapt", "delta_tent", "delta_eata")])
-                               + (r" & $\dagger$ \\" if FX[t][0]["is_train_severity"] else r" &  \\")
-                               for t in sorted(FX)])
+def _signed_ms(vals):
+    m_ = sum(vals) / len(vals)
+    return f"{m_:+.3f}$\\pm${(sum((v - m_) ** 2 for v in vals) / (len(vals) - 1)) ** 0.5:.3f}"
+
+
+# the noise rows of the four-family Adam table, rebuilt here from the noise rerun's files
+check_table("tab:adam-all", [f"Gaussian noise & {t:.3f} & " + " & ".join(_signed_ms([r[k] for r in FX[t]]) for k in
+                             ("err_oracle", "delta_frozen", "delta_bnadapt", "delta_tent", "delta_eata"))
+                             + (r" & $\dagger$ \\" if FX[t][0]["is_train_severity"] else r" &  \\")
+                             for t in sorted(FX)])
 
 # =========================================================================== appendix: DANN
 check("heat yardsticks (app)", "differs from the main run by up to $@$ with one replicate and $@$ with\nthe other, and the two replicates of the same seed differ by up to $@$",

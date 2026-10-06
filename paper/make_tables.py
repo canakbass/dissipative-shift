@@ -1,6 +1,7 @@
 """Generate appendix LaTeX tables directly from the raw (corrected, v2fix) result
 files, so numbers in the paper are never hand-transcribed."""
 import json
+import math
 import os
 import statistics as st
 from collections import defaultdict
@@ -129,7 +130,7 @@ def ms(vals):
 
 
 lines = [r"\begin{table}[!htbp]",
-         r"\caption{CIFAR-10 under the three dissipative semigroup corruptions and the deterministic-blur reversible control: measured avoidable error $\Delta_X(t)$ for all methods, families, and severities, mean $\pm$ standard deviation over three seeds. Rows marked $\dagger$ are training severities for the frozen model and DANN. TENT and EATA use the original SGD adaptation setting (Section~\ref{sec:tent-sweep}). DANN comes from a separate run and is paired with the same-seed oracle of the main run; oracles differ between runs by up to $0.027$, and Section~\ref{sec:dann} compares DANN without the oracle. In the control the Bayes risk is flat, so the oracle's rise there is slack (Section~\ref{sec:oracle}). At fog $t=4$ the oracle is at $0.84$, near chance ($0.9$).}",
+         r"\caption{CIFAR-10, every result of the main run: measured avoidable error $\Delta_X(t)$, mean $\pm$ SD over three seeds; $\dagger$ marks training severities of the frozen model and DANN. TENT and EATA use the original SGD adaptation setting (Section~\ref{sec:tent-sweep}). DANN comes from a separate run, paired with the same-seed oracle of the main run; oracles differ between runs by up to $0.027$, and Section~\ref{sec:dann} compares DANN without the oracle. In the control the Bayes risk is flat, so the oracle's rise there is slack (Section~\ref{sec:oracle}). At fog $t=4$ the oracle is at $0.84$, near chance ($0.9$).}",
          r"\centering\scriptsize\setlength{\tabcolsep}{2.5pt}",
          r"\begin{tabular}{llrrrrrl}", r"\toprule",
          r"Family & $t$ & $\Delta_{\text{frozen}}$ & $\Delta_{\text{BN-adapt}}$ & $\Delta_{\text{DANN}}$ & $\Delta_{\text{TENT}}$ & $\Delta_{\text{EATA}}$ & \\", r"\midrule"]
@@ -149,10 +150,18 @@ for p in sorted(glob.glob(f"{BASE}/oct3/adam-main-s*/output/cifar10_c_results_ad
     AM += [json.loads(l) for l in open(p)]
 am_names = {"blurfft_s15_a01": "Heat-equation blur", "fog_beer_lambert": "OU fog", "gauss_blur": "Deterministic blur (control)"}
 lines = [r"\begin{table}[!htbp]",
-         r"\caption{Heat-equation blur, fog and the control rerun with Adam as the adaptation optimizer for TENT and EATA, three seeds, every quantity from one run per seed (the noise family is in Table~\ref{tab:tent-fixed}). Oracle error and measured avoidable error $\Delta_X(t)$, mean $\pm$ standard deviation. Rows marked $\dagger$ are training severities.}",
+         r"\caption{The four families rerun with Adam as the adaptation optimizer for TENT and EATA, three seeds, every quantity from one run per seed; the noise runs are separate from those of the other three families. Oracle error and measured avoidable error $\Delta_X(t)$, mean $\pm$ standard deviation. Rows marked $\dagger$ are training severities.}",
          r"\centering\scriptsize\setlength{\tabcolsep}{2.5pt}",
          r"\begin{tabular}{llrrrrrl}", r"\toprule",
          r"Family & $t$ & $\mathrm{Err}_{\text{oracle}}$ & $\Delta_{\text{frozen}}$ & $\Delta_{\text{BN-adapt}}$ & $\Delta_{\text{TENT}}$ & $\Delta_{\text{EATA}}$ & \\", r"\midrule"]
+FX = []
+for s_ in (1, 2, 3):
+    FX += [json.loads(l) for l in open(f"{BASE}/kaggle_tent_fixed_s{s_}/output/cifar10_c_results_tentfixed_seed{s_}.jsonl")]
+for t in sorted({r["t"] for r in FX}):
+    rs = [r for r in FX if r["t"] == t]
+    dagger = r"$\dagger$" if rs[0]["is_train_severity"] else ""
+    cells = [ms([r[k] for r in rs]) for k in ("err_oracle", "delta_frozen", "delta_bnadapt", "delta_tent", "delta_eata")]
+    lines.append(f"Gaussian noise & {t:.3f} & " + " & ".join(cells) + f" & {dagger} \\\\")
 for fam in ("blurfft_s15_a01", "fog_beer_lambert", "gauss_blur"):
     for t in sorted({r["t"] for r in AM if r["family"] == fam}):
         rs = [r for r in AM if r["family"] == fam and r["t"] == t]
@@ -249,8 +258,8 @@ C1 = _rows("c100-fog-common-s*/output/cifar100_c_results_c100_fog_common_seed*.j
 CJ = _rows("c100-fog-joint-s*/output/cifar100_c_results_c100_fog_joint_seed*.jsonl")
 TF = _rows("tin-fog-common-s*/output/tin_results_tin_fog_common_seed*.jsonl")
 lines = [r"\begin{table}[!htbp]",
-         r"\caption{Fog pairs matched in equivalent noise variance $v$ on CIFAR-100 (three seeds) and Tiny-ImageNet (one seed); means. The two members of each pair have the same Bayes risk. Models as in Table~\ref{tab:matched}, trained for 15 epochs; the Tiny-ImageNet run has no joint model and omits the pair at $v = 0.042$.}",
-         r"\label{tab:scale}", r"\centering\footnotesize\setlength{\tabcolsep}{4pt}",
+         r"\caption{Fog pairs matched in equivalent noise variance $v$ on CIFAR-100 (three seeds) and Tiny-ImageNet (one seed); means. Models as in Table~\ref{tab:matched}, trained for 15 epochs; the Tiny-ImageNet run has no joint model and omits the pair at $v = 0.042$.}",
+         r"\label{tab:scale}", r"\centering\scriptsize\setlength{\tabcolsep}{4pt}",
          r"\begin{tabular}{lccccccc}", r"\toprule",
          r" & & \multicolumn{2}{c}{Oracle} & \multicolumn{2}{c}{Joint model} & \multicolumn{2}{c}{Separate models} \\",
          r"\cmidrule(lr){3-4}\cmidrule(lr){5-6}\cmidrule(lr){7-8}",
@@ -310,7 +319,7 @@ if "pad_c10" in _facts and "pad_c100" in _facts:
     names = {"zeros": "zero (as trained)", "reflect": "reflect", "circular": "circular", "haze": "haze value",
              "standardize": "standardized input"}
     lines = [r"\begin{table}[!htbp]",
-             r"\caption{The 200-epoch joint model with its first convolution padded in five ways, at inference only: gap between the drift and the diffusion member of each matched fog pair (error on the drift member minus error on the diffusion member), three-seed means. A star marks a pair that passes the decision rule of Section~\ref{sec:fog-ablation}. Reflect, circular and haze-valued padding commute with the affine map relating the two members; zero padding, which in normalized units is the data set's mean colour, does not. Standardizing each image makes the two members identically distributed.}",
+             r"\caption{The 200-epoch joint model with its first convolution padded in five ways, at inference only: gap between the drift and the diffusion member of each matched fog pair (error on the drift member minus error on the diffusion member), three-seed means. A star marks a pair that passes the decision rule of Section~\ref{sec:fog-ablation}.}",
              r"\label{tab:padding}",
              r"\centering\scriptsize\setlength{\tabcolsep}{3pt}",
              r"\begin{tabular}{llcccccccc}", r"\toprule",
@@ -337,22 +346,27 @@ if "bench" in _facts:
     B = _facts["bench"]
     mnames = {"cifar10_resnet20": "ResNet-20", "cifar10_resnet56": "ResNet-56", "cifar10_vgg13_bn": "VGG-13-BN"}
     cnames = {"clean": "clean", "contrast": "contrast", "brightness": "brightness", "fog": "fog", "gaussian_noise": "Gaussian noise"}
+    ms_ = _facts["bench_models"]
+    _ses = [B[f"{m_}|{c_}|bnadapt"]["SE"] for m_ in ms_ for c_ in ("clean", "contrast", "brightness", "fog", "gaussian_noise")]
+    # the caption's statement about the corrupted cells
+    assert all(abs(B[f"{m_}|{c_}|bnadapt"]["G"]) > 3 * B[f"{m_}|{c_}|bnadapt"]["SE"]
+               for m_ in ms_ for c_ in ("contrast", "brightness", "fog", "gaussian_noise"))
+    short = {"cifar10_resnet20": "R-20", "cifar10_resnet56": "R-56", "cifar10_vgg13_bn": "VGG"}
     lines = [r"\begin{table}[!htbp]",
-             r"\caption{CIFAR-10-C with three standard pretrained CIFAR-10 models, their first convolution padded with zeros (as trained) or reflect at inference. Errors are means over the five severities; the gain is the error with zero padding minus the error with reflect padding, so a positive gain means reflect padding helps, with its paired standard error in parentheses. TENT was run for ResNet-20 only. The corruptions were generated with the functions of the official generator.}",
+             r"\caption{CIFAR-10-C, pretrained ResNet-20 (R-20), ResNet-56 (R-56) and VGG-13-BN (VGG), first convolution padded with zeros (as trained) or reflect. Errors are five-severity means with zero padding; the gain is the error with zero padding minus that with reflect padding (positive: reflect helps). The paired standard errors of the BN-adapt gains lie between " + f"{math.floor(min(_ses) * 1e4) / 1e4:.4f} and {math.ceil(max(_ses) * 1e4) / 1e4:.4f}" + r"; every BN-adapt gain under a corruption exceeds three times its standard error in magnitude.}",
              r"\label{tab:bench}",
-             r"\centering\scriptsize\setlength{\tabcolsep}{3pt}",
-             r"\begin{tabular}{llccccc}", r"\toprule",
-             r" & & \multicolumn{3}{c}{BN-adapt} & Frozen & TENT \\",
-             r"\cmidrule(lr){3-5}",
-             r"Model & Corruption & Zero padding & Reflect & Gain & gain & gain \\", r"\midrule"]
-    for m_ in _facts["bench_models"]:
-        for c_ in ("clean", "contrast", "brightness", "fog", "gaussian_noise"):
-            b = B[f"{m_}|{c_}|bnadapt"]
-            fr = B.get(f"{m_}|{c_}|frozen")
-            te = B.get(f"{m_}|{c_}|tent")
-            lines.append(f"{mnames[m_]} & {cnames[c_]} & {b['err_zeros']:.4f} & {b['err_reflect']:.4f} & "
-                         f"${b['G']:+.4f}$ ({b['SE']:.4f}) & " + (f"${fr['G']:+.4f}$" if fr else "---") + " & "
-                         + (f"${te['G']:+.4f}$" if te else "---") + r" \\")
+             r"\centering\scriptsize\setlength{\tabcolsep}{2.5pt}",
+             r"\begin{tabular}{l" + "c" * (3 * len(ms_) + 1) + "}", r"\toprule",
+             r" & \multicolumn{3}{c}{BN-adapt error} & \multicolumn{3}{c}{BN-adapt gain} & \multicolumn{3}{c}{Frozen gain} & TENT gain \\",
+             r"\cmidrule(lr){2-4}\cmidrule(lr){5-7}\cmidrule(lr){8-10}\cmidrule(lr){11-11}",
+             "Corruption & " + " & ".join([short[m_] for m_ in ms_] * 3) + f" & {short[ms_[0]]} " + r"\\", r"\midrule"]
+    for c_ in ("clean", "contrast", "brightness", "fog", "gaussian_noise"):
+        cells = [f"{B[f'{m_}|{c_}|bnadapt']['err_zeros']:.4f}" for m_ in ms_]
+        cells += [f"${B[f'{m_}|{c_}|bnadapt']['G']:+.4f}$" for m_ in ms_]
+        cells += [f"${B[f'{m_}|{c_}|frozen']['G']:+.4f}$" if f"{m_}|{c_}|frozen" in B else "---" for m_ in ms_]
+        te = B.get(f"{ms_[0]}|{c_}|tent")
+        cells += [f"${te['G']:+.4f}$" if te else "---"]
+        lines.append(f"{cnames[c_]} & " + " & ".join(cells) + r" \\")
     lines += [r"\bottomrule", r"\end{tabular}", r"\end{table}"]
     with open(f"{OUT}/bench_table.tex", "w") as f:
         f.write("\n".join(lines) + "\n")
