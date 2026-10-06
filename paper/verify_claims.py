@@ -24,6 +24,7 @@ every token that falls in none of these classes, and the run fails if there is o
 Run from anywhere:  python paper/verify_claims.py      (exit code 1 on any failure)
 Run paper/facts.py first if the result files have changed.
 """
+import glob
 import inspect
 import json
 import math
@@ -268,22 +269,54 @@ _pv = sorted(_P10["zeros"]["frozen"], key=float)
 _outer2 = [k for k in _pv if _P10["reflect"]["frozen"][k]["positive"] and _P10["circular"]["frozen"][k]["positive"]]
 _hz = max(_P10["zeros"]["frozen"][k]["gap"] for k in _outer2)
 _hc = F("pad_c10_commuting_outer")
-for lab, tpl in (("abstract", "cost one frozen model, trained for 200 epochs, $@$ to $@$ more error in one\ncase"),
-                 ("contribution", "errs $@$ to\n$@$ more on one member"),
+# the headline: the zero-padded (V0) and the reflect-trained (V1) joint models at the two outer pairs
+_V0 = {f"{q['v']:.3f}": q for q in F("fjf_pairs")}
+_V1 = {f"{q['v']:.3f}": q for q in F("fjr_pairs")}
+_V1a = {f"{q['v']:.3f}": q for q in F("fjr_adapt")}
+_hd = [_V[k]["d_raw_mean"] for _V in (_V0, _V1) for k in _outer2]
+for lab, tpl in (("abstract", "first layer, $@$ to $@$ more error in one case than the other at the two pairs"),
+                 ("contribution", "errs $@$ to $@$ more on one member beyond"),
                  ("section", "cost a frozen classifier trained for 200 epochs\n$@$ to $@$ more error"),
                  ("discussion", "errs $@$ to $@$ more on one of\nthem"),
                  ("conclusion", "epochs, $@$ to $@$ more error in one case than in the other once it\nextrapolates")):
-    check(f"headline range ({lab})", tpl, _hc[0], _hz)
-word("headline: the two farthest pairs, every seed", "at the two pairs farthest beyond its training range, in each\nseed",
-     len(_outer2) == 2 and all(min(_P10[k]["frozen"][q]["gaps"]) > 0 for k in ("zeros", "reflect", "circular") for q in _outer2))
-for tpl in ("about a fifth of that excess comes from the zero padding", "about a fifth of it from the zero padding",
-            "Zero padding thus accounts for\nabout a fifth of the frozen gap"):
-    word(f"fifth: {tpl[:30]}", tpl, 0.17 < F("pad_c10_zero_share") < 0.25)
-word("eighth on CIFAR-100", "on CIFAR-100, for about an eighth, with all three\nouter pairs still passing",
-     0.10 < F("pad_c100_zero_share") < 0.15 and F("pad_c100_outer_positive")["reflect"] == 3 == F("pad_c100_outer_positive")["circular"])
-word("normalization removes it with commuting padding", "test-time\nnormalization removes it entirely",
-     max(F("pad_c10_bn_commuting_max"), F("pad_c100_bn_commuting_max")) < 0.005
+    check(f"headline range ({lab})", tpl, min(_hd), max(_hd))
+word("headline: the two farthest pairs, every seed", "at the two pairs\nfarthest beyond its training range, in each seed",
+     len(_outer2) == 2 and all(_V[k]["positive"] and min(_V[k]["d_raw"]) > 0 for _V in (_V0, _V1) for k in _outer2))
+_v1_bn_clean = not any(q["bn_positive"] for q in F("fjr_adapt"))
+# claims withdrawn after the reflect-trained run: they must not come back
+for _old in (r"about\s+a\s+fifth", r"about\s+an\s+eighth", r"Part\s+of\s+this\s+comes\s+from\s+the\s+first\s+convolution", r"Zero\s+padding\s+thus\s+accounts"):
+    if re.search(_old, BODY):
+        FAILS.append(f"withdrawn claim back in the text: /{_old}/")
+    else:
+        PASSES += 1
+word("normalization removes it with reflect padding", "with reflect padding, test-time\nnormalization removes that excess entirely",
+     _v1_bn_clean and max(F("pad_c10_bn_commuting_max"), F("pad_c100_bn_commuting_max")) < 0.005
      and not any(_P[k]["bnadapt"][q]["positive"] for _P in (_P10, _P100) for k in ("reflect", "circular", "haze") for q in _pv))
+word("contribution: normalization removes it with reflect padding", "with reflect padding, test-time normalization removes the\nexcess", _v1_bn_clean)
+word("not a zero-padding artefact", "It is not\nan artefact of the first convolution's zero padding",
+     sum(_V1[k]["positive"] for k in _V1 if float(k) > 0.05) >= 2)
+check("V1: full gap", "Trained with reflect padding,\nthe model keeps the full gap, $@$ and $@$ in every seed", *[_V1[k]["d_raw_mean"] for k in _outer2])
+word("V1: full gap (condition)", "the model keeps the full gap",
+     all(_V1[k]["positive"] for k in _outer2) and mean([_V1[k]["d_raw_mean"] for k in _outer2]) > 0.9 * mean([_V0[k]["d_raw_mean"] for k in _outer2])
+     and min(_V1[k]["d_raw_mean"] for k in _outer2) > max(F("pad_c10_commuting_outer")))
+word("CIFAR-100 three outer pairs at inference", "on CIFAR-100 all three outer pairs pass\nwith either padding",
+     F("pad_c100_outer_positive")["reflect"] == 3 == F("pad_c100_outer_positive")["circular"])
+check("V1: BN-adapt within", "and to within $@$ in the model trained with reflect padding",
+      max(abs(q["bn_gap"]) for q in F("fjr_adapt")), rnd="up")
+word("V1: BN-adapt within (condition)", "in the model trained with reflect padding", _v1_bn_clean)
+word("discussion: normalization removes it unless zero padding", "test-time normalization removes the excess unless the first layer pads with zeros",
+     _v1_bn_clean and not any(_P[k]["bnadapt"][q]["positive"] for _P in (_P10, _P100) for k in ("reflect", "circular", "haze") for q in _pv)
+     and all(_P10["zeros"]["bnadapt"][q]["positive"] for q in _pv))
+word("V1 on CIFAR-10 only", "The model trained with reflect padding was run on\nCIFAR-10 only",
+     not glob.glob(os.path.join(ROOT, "oct3", "c100-fog-joint-full-reflect-s*")))
+word("appendix: V1 keeps the frozen gap", "keeps the frozen gap at the two outer pairs, and with\nBN-adapt no pair passes",
+     all(_V1[k]["positive"] for k in _outer2) and _v1_bn_clean)
+check("appendix: V1 clean error", "BN-adapt no pair passes; clean error $@$", F("fjr_clean_err")[0])
+word("appendix: V1 three seeds", "trained with reflect padding (three\nseeds;",
+     F("fjr_pairs")[0]["seeds"] == [1, 2, 3] and "FULL_BUDGET = JOB.endswith(\"_full\") or JOB.endswith(\"_full_reflect\")" in src("kaggle_oct3_runner/runner.py"), cls="design")
+check("rules: V1 counts", "Frozen: $@$ of $@$ outer pairs pass, so the gap is not a zero-padding artefact",
+      sum(_V1[k]["positive"] for k in _V1 if float(k) > 0.05), sum(1 for k in _V1 if float(k) > 0.05))
+word("rules: V1 BN-adapt", "a zero-padding artefact; BN-adapt: no pair passes", _v1_bn_clean)
 _mcf = F("matched_contrast")
 check("border mismatch growth", "about $@$ to $@$ for the drift members and\n$@$ to $@$ for the diffusion members",
       *[(1 - _mcf[k]["drift"]) / _mcf[k]["drift"] for k in ("0.089", "0.490")], *[(1 - _mcf[k]["diffuse"]) / _mcf[k]["diffuse"] for k in ("0.089", "0.490")])
@@ -308,8 +341,6 @@ check("rules: padding counts", "with both paddings $@$ of $@$ outer pairs pass o
       min(F("pad_c10_outer_positive")["reflect"], F("pad_c10_outer_positive")["circular"]), 3,
       min(F("pad_c100_outer_positive")["reflect"], F("pad_c100_outer_positive")["circular"]), 3)
 _bn_clean = not any(_P[k]["bnadapt"][q]["positive"] for _P in (_P10, _P100) for k in ("reflect", "circular", "haze") for q in _pv)
-word("discussion: normalization fails only because of zero padding", "test-time normalization fails to remove the\nexcess only because of the first layer's zero padding",
-     _bn_clean and all(_P10["zeros"]["bnadapt"][q]["positive"] for q in _pv))
 word("appendix: BN-adapt gap disappears", "Under BN-adapt the gap disappears with every commuting padding, at every pair, on\nboth data sets", _bn_clean)
 word("appendix: frozen gap persists", "In the frozen model it persists at the two outer pairs of CIFAR-10\nand the three outer pairs of CIFAR-100",
      len(_outer2) == 2 and F("pad_c100_outer_positive")["reflect"] == 3 == F("pad_c100_outer_positive")["circular"])
@@ -1196,7 +1227,7 @@ for m in re.finditer(r"(\$t\s*=\s*0\.25\$,\s*\$0\.5\$\s*and\s*\$1\$)|(\$t = 0\.1
 # =========================================================================== coverage
 TOKEN = re.compile(r"(?P<sci>\d+(?:\.\d+)?\\times\s*10\^\{-?\d+\})|(?P<pow>(?<![\d.])\d+\^\{-?\d+\})"
                    r"|(?P<num>(?<![\w.\\{-])-?\d+(?:\{,\}\d{3})*(?:\.\d+)?|(?<=\{)\d+(?:\.\d+)?(?=\}))")
-SKIP_BEFORE = re.compile(r"(\\(?:label|ref|cite\w*|begin|end|includegraphics|input|cmidrule\(lr\)|multicolumn|setlength\{\\tabcolsep\}|item)\{?[^}$]*$"
+SKIP_BEFORE = re.compile(r"(\\(?:label|ref|cite\w*|begin|end|includegraphics|input|cmidrule\(lr\)|multicolumn|setlength\{\\tabcolsep\}|renewcommand\{\\arraystretch\}|item)\{?[^}$]*$"
                          r"|ResNet-$|CIFAR-$|CIFAR-10-$|Tiny-$|\\texttt\{[\d.]*$|L\{$)")
 SKIP_AFTER = re.compile(r"^(\\linewidth|pt\}|\}\{c\}|-\d)")
 MATH = [m.span() for m in re.finditer(r"\$[^$]+\$|\\\[.*?\\\]|\\begin\{equation\}.*?\\end\{equation\}"

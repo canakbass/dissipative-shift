@@ -150,8 +150,8 @@ for p in sorted(glob.glob(f"{BASE}/oct3/adam-main-s*/output/cifar10_c_results_ad
     AM += [json.loads(l) for l in open(p)]
 am_names = {"blurfft_s15_a01": "Heat-equation blur", "fog_beer_lambert": "OU fog", "gauss_blur": "Deterministic blur (control)"}
 lines = [r"\begin{table}[!htbp]",
-         r"\caption{The four families rerun with Adam as the adaptation optimizer for TENT and EATA, three seeds, every quantity from one run per seed; the noise runs are separate from those of the other three families. Oracle error and measured avoidable error $\Delta_X(t)$, mean $\pm$ standard deviation. Rows marked $\dagger$ are training severities.}",
-         r"\centering\scriptsize\setlength{\tabcolsep}{2.5pt}",
+         r"\caption{The four families rerun with Adam as the adaptation optimizer for TENT and EATA, three seeds, every quantity from one run per seed (noise in runs of its own). Oracle error and measured avoidable error $\Delta_X(t)$, mean $\pm$ SD; $\dagger$ marks training severities.}",
+         r"\centering\scriptsize\setlength{\tabcolsep}{2.5pt}\renewcommand{\arraystretch}{0.9}",
          r"\begin{tabular}{llrrrrrl}", r"\toprule",
          r"Family & $t$ & $\mathrm{Err}_{\text{oracle}}$ & $\Delta_{\text{frozen}}$ & $\Delta_{\text{BN-adapt}}$ & $\Delta_{\text{TENT}}$ & $\Delta_{\text{EATA}}$ & \\", r"\midrule"]
 FX = []
@@ -319,7 +319,7 @@ if "pad_c10" in _facts and "pad_c100" in _facts:
     names = {"zeros": "zero (as trained)", "reflect": "reflect", "circular": "circular", "haze": "haze value",
              "standardize": "standardized input"}
     lines = [r"\begin{table}[!htbp]",
-             r"\caption{The 200-epoch joint model with its first convolution padded in five ways, at inference only: gap between the drift and the diffusion member of each matched fog pair (error on the drift member minus error on the diffusion member), three-seed means. A star marks a pair that passes the decision rule of Section~\ref{sec:fog-ablation}.}",
+             r"\caption{The 200-epoch joint model with its first convolution padded in five ways at inference, and the same model trained with reflect padding (``reflect, trained''): gap, error on the drift member minus error on the diffusion member of each matched fog pair, three-seed means. A star marks a pair that passes the decision rule of Section~\ref{sec:fog-ablation}.}",
              r"\label{tab:padding}",
              r"\centering\scriptsize\setlength{\tabcolsep}{3pt}",
              r"\begin{tabular}{llcccccccc}", r"\toprule",
@@ -336,6 +336,13 @@ if "pad_c10" in _facts and "pad_c100" in _facts:
                     g = _facts[tag][k][key][v]
                     cells.append(f"${g['gap']:+.3f}$" + (r"$^\ast$" if g["positive"] else ""))
             lines.append(f"{ds} & {names[k]} & " + " & ".join(cells) + r" \\")
+        if tag == "pad_c10" and "fjr_pairs" in _facts:
+            fr = sorted(_facts["fjr_pairs"], key=lambda q: q["v"])
+            ad = sorted(_facts["fjr_adapt"], key=lambda q: q["v"])
+            assert [f"{q['v']:.3f}" for q in fr] == vs
+            cells = [f"${q['d_raw_mean']:+.3f}$" + (r"$^\ast$" if q["positive"] else "") for q in fr]
+            cells += [f"${q['bn_gap']:+.3f}$" + (r"$^\ast$" if q["bn_positive"] else "") for q in ad]
+            lines.append(r"CIFAR-10 & reflect, trained & " + " & ".join(cells) + r" \\")
     lines += [r"\bottomrule", r"\end{tabular}", r"\end{table}"]
     with open(f"{OUT}/padding_table.tex", "w") as f:
         f.write("\n".join(lines) + "\n")

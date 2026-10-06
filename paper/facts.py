@@ -699,10 +699,14 @@ _joint("fog-joint-s*/output/cifar10_c_results_fog_joint_seed*.jsonl", "fj_pairs"
 _joint("c100-fog-joint-s*/output/cifar100_c_results_c100_fog_joint_seed*.jsonl", "fj100_pairs")
 _joint("fog-joint-full-s*/output/cifar10_c_results_fog_joint_full_seed*.jsonl", "fjf_pairs")
 _joint("c100-fog-joint-full-s*/output/cifar100_c_results_c100_fog_joint_full_seed*.jsonl", "fjf100_pairs")
+# the same model trained with reflect padding in its first convolution (rule fixed before the run)
+_FJR = "fog-joint-full-reflect-s*/output/cifar10_c_results_fog_joint_full_reflect_seed*.jsonl"
+_joint(_FJR, "fjr_pairs")
 for _k, _p in (("fj", "fog-joint-s*/output/cifar10_c_results_fog_joint_seed*.jsonl"),
                ("fj100", "c100-fog-joint-s*/output/cifar100_c_results_c100_fog_joint_seed*.jsonl"),
                ("fjf", "fog-joint-full-s*/output/cifar10_c_results_fog_joint_full_seed*.jsonl"),
-               ("fjf100", "c100-fog-joint-full-s*/output/cifar100_c_results_c100_fog_joint_full_seed*.jsonl")):
+               ("fjf100", "c100-fog-joint-full-s*/output/cifar100_c_results_c100_fog_joint_full_seed*.jsonl"),
+               ("fjr", _FJR)):
     _cl = [r["err_frozen"] for r in _oct3(_p) if r["family"] == "clean"]
     if _cl:
         F[f"{_k}_clean_err"] = _m3(_cl)
@@ -865,7 +869,10 @@ F["separate_train_contrasts"] = {m: sorted(_contrast("fog_drift" if m.startswith
 
 # --- adaptation does not close the matched-pair gap (joint model, 200 epochs)
 for _key, _pat in (("fjf", "fog-joint-full-s*/output/cifar10_c_results_fog_joint_full_seed*.jsonl"),
-                   ("fjf100", "c100-fog-joint-full-s*/output/cifar100_c_results_c100_fog_joint_full_seed*.jsonl")):
+                   ("fjf100", "c100-fog-joint-full-s*/output/cifar100_c_results_c100_fog_joint_full_seed*.jsonl"),
+                   ("fjr", _FJR)):
+    if _key + "_pairs" not in F:
+        continue
     _rr = [r for r in _oct3(_pat) if r["family"] != "clean"]
     _out = []
     for r in sorted(F[_key + "_pairs"], key=lambda q: q["v"]):
@@ -875,6 +882,16 @@ for _key, _pat in (("fjf", "fog-joint-full-s*/output/cifar10_c_results_fog_joint
                          tent_gap=mean([q["err_tent"] for q in a_]) - mean([q["err_tent"] for q in b_]),
                          bn_drift=mean([q["err_bnadapt"] for q in a_]), frozen_drift=r["err_drift"]))
     F[_key + "_adapt"] = _out
+# the reflect-trained model under BN-adapt, judged by the rule of the frozen pairs
+if "fjr_pairs" in F:
+    _rr = [r for r in _oct3(_FJR) if r["family"] != "clean"]
+    for r, ad in zip(sorted(F["fjr_pairs"], key=lambda q: q["v"]), F["fjr_adapt"]):
+        a_ = {q["seed"]: q for q in _rr if q["family"] == "fog_drift" and abs(q["t"] - r["t_drift"]) < 1e-3}
+        b_ = {q["seed"]: q for q in _rr if q["family"] == "fog_diffuse" and q["t"] == r["t_diffuse"]}
+        raw = [a_[s_]["err_bnadapt"] - b_[s_]["err_bnadapt"] for s_ in sorted(a_)]
+        inv = [a_[s_]["err_bnadapt_inv"] - b_[s_]["err_bnadapt_inv"] for s_ in sorted(a_)]
+        ad["bn_positive"] = (len(raw) == 3 and (all(x > 0 for x in raw) or all(x < 0 for x in raw))
+                             and all(abs(x) > abs(y) for x, y in zip(raw, inv)) and abs(mean(raw)) > sd(raw))
 
 
 def clean(o):
