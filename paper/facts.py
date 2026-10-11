@@ -667,6 +667,11 @@ TA = _oct3("tin-adam-s*/output/tin_results_tin_adam_seed*.jsonl")
 F["tin_adam"] = {r["t"]: r for r in TA}
 
 
+def _mean_or_none(xs):
+    """None for a model without BatchNorm, whose runs have no BN-adapt error."""
+    return None if any(x is None for x in xs) else mean(xs)
+
+
 # --- fog_joint: one model trained on both regimes' v-matched grids (rule fixed before the runs)
 def _joint(pattern, key):
     JR = _oct3(pattern)
@@ -685,8 +690,8 @@ def _joint(pattern, key):
                         err_diffuse=mean([jb[("fog_diffuse", tD, s)]["err_frozen"] for s in seeds]),
                         err_drift_inv=mean([jb[("fog_drift", td, s)]["err_frozen_inv"] for s in seeds]),
                         err_diffuse_inv=mean([jb[("fog_diffuse", tD, s)]["err_frozen_inv"] for s in seeds]),
-                        bn_drift=mean([jb[("fog_drift", td, s)]["err_bnadapt"] for s in seeds]),
-                        bn_diffuse=mean([jb[("fog_diffuse", tD, s)]["err_bnadapt"] for s in seeds]),
+                        bn_drift=_mean_or_none([jb[("fog_drift", td, s)]["err_bnadapt"] for s in seeds]),
+                        bn_diffuse=_mean_or_none([jb[("fog_diffuse", tD, s)]["err_bnadapt"] for s in seeds]),
                         d_raw=raw, d_raw_mean=mean(raw), d_raw_sd=sd(raw) if len(raw) > 1 else float("nan"),
                         d_inv_abs_max=max(abs(x) for x in inv),
                         positive=len(seeds) == 3 and (all(x > 0 for x in raw) or all(x < 0 for x in raw))
@@ -702,11 +707,18 @@ _joint("c100-fog-joint-full-s*/output/cifar100_c_results_c100_fog_joint_full_see
 # the same model trained with reflect padding in its first convolution (rule fixed before the run)
 _FJR = "fog-joint-full-reflect-s*/output/cifar10_c_results_fog_joint_full_reflect_seed*.jsonl"
 _joint(_FJR, "fjr_pairs")
+# normalization ablation (rule fixed before the runs): GroupNorm(32), GroupNorm(1), standardized input
+_FJN = {"fjgn": "fog-joint-full-gn32-s*/output/cifar10_c_results_fog_joint_full_gn32_seed*.jsonl",
+        "fjln": "fog-joint-full-ln-s*/output/cifar10_c_results_fog_joint_full_ln_seed*.jsonl",
+        "fjstd": "fog-joint-full-std-s*/output/cifar10_c_results_fog_joint_full_std_seed*.jsonl"}
+for _k, _p in _FJN.items():
+    if len({r["seed"] for r in _oct3(_p)}) == 3:
+        _joint(_p, _k + "_pairs")
 for _k, _p in (("fj", "fog-joint-s*/output/cifar10_c_results_fog_joint_seed*.jsonl"),
                ("fj100", "c100-fog-joint-s*/output/cifar100_c_results_c100_fog_joint_seed*.jsonl"),
                ("fjf", "fog-joint-full-s*/output/cifar10_c_results_fog_joint_full_seed*.jsonl"),
                ("fjf100", "c100-fog-joint-full-s*/output/cifar100_c_results_c100_fog_joint_full_seed*.jsonl"),
-               ("fjr", _FJR)):
+               ("fjr", _FJR)) + tuple(_FJN.items()):
     _cl = [r["err_frozen"] for r in _oct3(_p) if r["family"] == "clean"]
     if _cl:
         F[f"{_k}_clean_err"] = _m3(_cl)
@@ -870,7 +882,7 @@ F["separate_train_contrasts"] = {m: sorted(_contrast("fog_drift" if m.startswith
 # --- adaptation does not close the matched-pair gap (joint model, 200 epochs)
 for _key, _pat in (("fjf", "fog-joint-full-s*/output/cifar10_c_results_fog_joint_full_seed*.jsonl"),
                    ("fjf100", "c100-fog-joint-full-s*/output/cifar100_c_results_c100_fog_joint_full_seed*.jsonl"),
-                   ("fjr", _FJR)):
+                   ("fjr", _FJR), ("fjstd", _FJN["fjstd"])):
     if _key + "_pairs" not in F:
         continue
     _rr = [r for r in _oct3(_pat) if r["family"] != "clean"]
@@ -879,13 +891,16 @@ for _key, _pat in (("fjf", "fog-joint-full-s*/output/cifar10_c_results_fog_joint
         a_ = [q for q in _rr if q["family"] == "fog_drift" and abs(q["t"] - r["t_drift"]) < 1e-3]
         b_ = [q for q in _rr if q["family"] == "fog_diffuse" and q["t"] == r["t_diffuse"]]
         _out.append(dict(v=r["v"], bn_gap=mean([q["err_bnadapt"] for q in a_]) - mean([q["err_bnadapt"] for q in b_]),
-                         tent_gap=mean([q["err_tent"] for q in a_]) - mean([q["err_tent"] for q in b_]),
+                         tent_gap=(mean([q["err_tent"] for q in a_]) - mean([q["err_tent"] for q in b_])
+                                   if a_[0]["err_tent"] is not None else None),   # no TENT in the ablation
                          bn_drift=mean([q["err_bnadapt"] for q in a_]), frozen_drift=r["err_drift"]))
     F[_key + "_adapt"] = _out
-# the reflect-trained model under BN-adapt, judged by the rule of the frozen pairs
-if "fjr_pairs" in F:
-    _rr = [r for r in _oct3(_FJR) if r["family"] != "clean"]
-    for r, ad in zip(sorted(F["fjr_pairs"], key=lambda q: q["v"]), F["fjr_adapt"]):
+# the retrained BatchNorm models under BN-adapt, judged by the rule of the frozen pairs
+for _key, _pat in (("fjr", _FJR), ("fjstd", _FJN["fjstd"])):
+    if _key + "_pairs" not in F:
+        continue
+    _rr = [r for r in _oct3(_pat) if r["family"] != "clean"]
+    for r, ad in zip(sorted(F[_key + "_pairs"], key=lambda q: q["v"]), F[_key + "_adapt"]):
         a_ = {q["seed"]: q for q in _rr if q["family"] == "fog_drift" and abs(q["t"] - r["t_drift"]) < 1e-3}
         b_ = {q["seed"]: q for q in _rr if q["family"] == "fog_diffuse" and q["t"] == r["t_diffuse"]}
         raw = [a_[s_]["err_bnadapt"] - b_[s_]["err_bnadapt"] for s_ in sorted(a_)]

@@ -121,9 +121,19 @@ JOBS = {
     "c100_padding_test": {},
     # the joint model trained with reflect padding in its first convolution
     "fog_joint_full_reflect": {},
+    # normalization ablation of the 200-epoch joint model: GroupNorm with 32 groups, or
+    # with one group (layer normalization), in place of every BatchNorm; or BatchNorm
+    # with each input image standardized, in training and at test
+    "fog_joint_full_gn32": {},
+    "fog_joint_full_ln": {},
+    "fog_joint_full_std": {},
 }
-FOG_JOINT_JOBS = ("fog_joint", "c100_fog_joint", "fog_joint_full", "c100_fog_joint_full", "fog_joint_full_reflect")
-FULL_BUDGET = JOB.endswith("_full") or JOB.endswith("_full_reflect")
+NORM_ABLATION_JOBS = ("fog_joint_full_gn32", "fog_joint_full_ln", "fog_joint_full_std")
+FOG_JOINT_JOBS = ("fog_joint", "c100_fog_joint", "fog_joint_full", "c100_fog_joint_full",
+                  "fog_joint_full_reflect") + NORM_ABLATION_JOBS
+FULL_BUDGET = JOB in ("fog_joint_full", "c100_fog_joint_full", "fog_joint_full_reflect") + NORM_ABLATION_JOBS
+NORM_KIND = {"fog_joint_full_gn32": "gn32", "fog_joint_full_ln": "ln"}.get(JOB, "bn")
+STANDARDIZE_INPUT = JOB == "fog_joint_full_std"
 # the first convolution's padding; reflect commutes with the scalar affine map between two
 # matched fog members
 CONV1_PADDING = "reflect" if JOB.endswith("_reflect") else "zeros"
@@ -254,17 +264,26 @@ def fog_invert(x, t, family):
     return ((x - (1 - decay)) / decay).astype(np.float32)
 
 
+def norm_layer(channels):
+    """BatchNorm, except in the normalization ablation."""
+    if NORM_KIND == "gn32":
+        return nn.GroupNorm(32, channels)
+    if NORM_KIND == "ln":
+        return nn.GroupNorm(1, channels)
+    return nn.BatchNorm2d(channels)
+
+
 class BasicBlock(nn.Module):
     def __init__(self, in_planes, planes, stride=1):
         super().__init__()
         self.conv1 = nn.Conv2d(in_planes, planes, 3, stride, 1, bias=False)
-        self.bn1 = nn.BatchNorm2d(planes)
+        self.bn1 = norm_layer(planes)
         self.conv2 = nn.Conv2d(planes, planes, 3, 1, 1, bias=False)
-        self.bn2 = nn.BatchNorm2d(planes)
+        self.bn2 = norm_layer(planes)
         self.shortcut = nn.Sequential()
         if stride != 1 or in_planes != planes:
             self.shortcut = nn.Sequential(
-                nn.Conv2d(in_planes, planes, 1, stride, bias=False), nn.BatchNorm2d(planes)
+                nn.Conv2d(in_planes, planes, 1, stride, bias=False), norm_layer(planes)
             )
 
     def forward(self, x):
@@ -280,7 +299,7 @@ class ResNet18(nn.Module):
         super().__init__()
         self.in_planes = 64
         self.conv1 = nn.Conv2d(3, 64, 3, 1, 1, bias=False, padding_mode=CONV1_PADDING)
-        self.bn1 = nn.BatchNorm2d(64)
+        self.bn1 = norm_layer(64)
         self.layer1 = self._make_layer(64, 2, 1)
         self.layer2 = self._make_layer(128, 2, 2)
         self.layer3 = self._make_layer(256, 2, 2)
@@ -692,29 +711,39 @@ def run_fog_joint(x_train_raw, y_train, x_eval_raw, y_eval, rng):
         chunks.append(corrupt(x_train_raw[sl], t, fam, rng))
         labels.append(y_train[sl])
     epochs = FULL_EPOCHS if FULL_BUDGET else EPOCHS
-    model = train_model(np.concatenate(chunks), np.concatenate(labels), epochs=epochs)
+    # the standardized-input variant sees every image standardized, in training and at test
+    prep = standardize_images if STANDARDIZE_INPUT else (lambda a: a)
+    print(f"  normalization: {NORM_KIND}, standardized input: {STANDARDIZE_INPUT}", flush=True)
+    model = train_model(prep(np.concatenate(chunks)), np.concatenate(labels), epochs=epochs)
     torch.save(model.state_dict(), f"/kaggle/working/fogjoint_{JOB}_seed{SEED}.pt")
     print(f"  joint model trained, {epochs} epochs ({time.time()-t0:.1f}s)", flush=True)
-    err_clean = eval_error(model, x_eval_raw, y_eval)
+    # batch-statistic adaptation only where there is BatchNorm; no TENT in the ablation
+    has_bn = any(isinstance(m, nn.BatchNorm2d) for m in model.modules())
+    with_tent = JOB not in NORM_ABLATION_JOBS
+    err_clean = eval_error(model, prep(x_eval_raw), y_eval)
     print(f"  joint model, clean test error: {err_clean:.4f}", flush=True)
     rows = [dict(job=JOB, dataset=DATASET, family="clean", t=0.0, seed=SEED, model="joint", epochs=epochs,
                  err_frozen=err_clean)]
     for td, tD in FOG_COMMON_PAIRS:
         for fam, t in (("fog_drift", td), ("fog_diffuse", tD)):
             x_eval_t = corrupt(x_eval_raw, t, fam, rng)
-            x_eval_inv = fog_invert(x_eval_t, t, fam)
+            x_eval_inv = prep(fog_invert(x_eval_t, t, fam))
+            x_eval_t = prep(x_eval_t)
             r = dict(job=JOB, dataset=DATASET, family=fam, t=t, seed=SEED, model="joint", epochs=epochs,
                      model_train_grid=grid, v=fog_v(fam, t), decay=math.exp(-FOG_PARAMS[fam]["a"] * t),
                      v_horizon=fog_v(fam, t) / fog_v("fog_diffuse", max(FOG_COMMON_DIFFUSE_TRAIN)),
                      err_oracle=None,
                      err_frozen=eval_error(model, x_eval_t, y_eval),
                      err_frozen_inv=eval_error(model, x_eval_inv, y_eval),
-                     err_bnadapt=bn_adapt_eval_error(model, x_eval_t, y_eval),
-                     err_bnadapt_inv=bn_adapt_eval_error(model, x_eval_inv, y_eval),
-                     err_tent=tent_eval_error(model, x_eval_t, y_eval))
+                     err_bnadapt=bn_adapt_eval_error(model, x_eval_t, y_eval) if has_bn else None,
+                     err_bnadapt_inv=bn_adapt_eval_error(model, x_eval_inv, y_eval) if has_bn else None,
+                     err_tent=tent_eval_error(model, x_eval_t, y_eval) if with_tent else None)
+            if JOB in NORM_ABLATION_JOBS:
+                r.update(norm=NORM_KIND, standardized_input=STANDARDIZE_INPUT)
             rows.append(r)
-            print(f"  {fam:<11} t={t:<7} v={r['v']:.4f} frozen={r['err_frozen']:.4f} "
-                  f"frozen_inv={r['err_frozen_inv']:.4f} bn={r['err_bnadapt']:.4f} tent={r['err_tent']:.4f}", flush=True)
+            fmt = lambda e: "---" if e is None else f"{e:.4f}"
+            print(f"  {fam:<11} t={t:<7} v={r['v']:.4f} frozen={fmt(r['err_frozen'])} "
+                  f"frozen_inv={fmt(r['err_frozen_inv'])} bn={fmt(r['err_bnadapt'])} tent={fmt(r['err_tent'])}", flush=True)
     print(f"  fog_joint done ({time.time()-t0:.1f}s)", flush=True)
     return rows
 

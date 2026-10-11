@@ -150,7 +150,7 @@ for p in sorted(glob.glob(f"{BASE}/oct3/adam-main-s*/output/cifar10_c_results_ad
     AM += [json.loads(l) for l in open(p)]
 am_names = {"blurfft_s15_a01": "Heat-equation blur", "fog_beer_lambert": "OU fog", "gauss_blur": "Deterministic blur (control)"}
 lines = [r"\begin{table}[!htbp]",
-         r"\caption{The four families rerun with Adam as the adaptation optimizer for TENT and EATA, three seeds, every quantity from one run per seed (noise in runs of its own). Oracle error and measured avoidable error $\Delta_X(t)$, mean $\pm$ SD; $\dagger$ marks training severities.}",
+         r"\caption{The four families rerun with Adam for TENT and EATA: oracle error and measured avoidable error $\Delta_X(t)$, three seeds, mean $\pm$ SD, every quantity from one run per seed (noise in runs of its own); $\dagger$ marks training severities.}",
          r"\centering\scriptsize\setlength{\tabcolsep}{2.5pt}\renewcommand{\arraystretch}{0.9}",
          r"\begin{tabular}{llrrrrrl}", r"\toprule",
          r"Family & $t$ & $\mathrm{Err}_{\text{oracle}}$ & $\Delta_{\text{frozen}}$ & $\Delta_{\text{BN-adapt}}$ & $\Delta_{\text{TENT}}$ & $\Delta_{\text{EATA}}$ & \\", r"\midrule"]
@@ -319,14 +319,14 @@ if "pad_c10" in _facts and "pad_c100" in _facts:
     names = {"zeros": "zero (as trained)", "reflect": "reflect", "circular": "circular", "haze": "haze value",
              "standardize": "standardized input"}
     lines = [r"\begin{table}[!htbp]",
-             r"\caption{The 200-epoch joint model with its first convolution padded in five ways at inference, and the same model trained with reflect padding (``reflect, trained''): gap, error on the drift member minus error on the diffusion member of each matched fog pair, three-seed means. A star marks a pair that passes the decision rule of Section~\ref{sec:fog-ablation}.}",
+             r"\caption{The 200-epoch joint model with its first convolution padded in five ways at inference, and retrained (``trained'') with reflect padding, with GroupNorm (32 groups) or layer normalization in place of batch normalization, or on standardized images: gap, error on the drift member minus error on the diffusion member of each matched fog pair, three-seed means. A star marks a pair that passes the decision rule of Section~\ref{sec:fog-ablation}.}",
              r"\label{tab:padding}",
              r"\centering\scriptsize\setlength{\tabcolsep}{3pt}",
              r"\begin{tabular}{llcccccccc}", r"\toprule",
              r" & & \multicolumn{4}{c}{Frozen, at $v =$} & \multicolumn{4}{c}{BN-adapt, at $v =$} \\",
              r"\cmidrule(lr){3-6}\cmidrule(lr){7-10}"]
     vs = sorted(_facts["pad_c10"]["zeros"]["frozen"], key=float)
-    lines.append(r"Dataset & First-layer padding & " + " & ".join(f"${v}$" for v in vs + vs) + r" \\")
+    lines.append(r"Dataset & Variant & " + " & ".join(f"${v}$" for v in vs + vs) + r" \\")
     lines.append(r"\midrule")
     for tag, ds in (("pad_c10", "CIFAR-10"), ("pad_c100", "CIFAR-100")):
         for k in ("zeros", "reflect", "circular", "haze", "standardize"):
@@ -343,6 +343,20 @@ if "pad_c10" in _facts and "pad_c100" in _facts:
             cells = [f"${q['d_raw_mean']:+.3f}$" + (r"$^\ast$" if q["positive"] else "") for q in fr]
             cells += [f"${q['bn_gap']:+.3f}$" + (r"$^\ast$" if q["bn_positive"] else "") for q in ad]
             lines.append(r"CIFAR-10 & reflect, trained & " + " & ".join(cells) + r" \\")
+            # the normalization ablation, retrained (no BN-adapt without batch normalization)
+            for key, label in (("fjgn", "GroupNorm, trained"), ("fjln", "layer norm, trained"),
+                               ("fjstd", "standardized, trained")):
+                if key + "_pairs" not in _facts:
+                    continue
+                fr = sorted(_facts[key + "_pairs"], key=lambda q: q["v"])
+                assert [f"{q['v']:.3f}" for q in fr] == vs
+                cells = [f"${q['d_raw_mean']:+.3f}$" + (r"$^\ast$" if q["positive"] else "") for q in fr]
+                if key + "_adapt" in _facts:
+                    ad = sorted(_facts[key + "_adapt"], key=lambda q: q["v"])
+                    cells += [f"${q['bn_gap']:+.3f}$" + (r"$^\ast$" if q["bn_positive"] else "") for q in ad]
+                else:
+                    cells += ["---"] * len(vs)
+                lines.append(f"CIFAR-10 & {label} & " + " & ".join(cells) + r" \\")
     lines += [r"\bottomrule", r"\end{tabular}", r"\end{table}"]
     with open(f"{OUT}/padding_table.tex", "w") as f:
         f.write("\n".join(lines) + "\n")
@@ -360,7 +374,7 @@ if "bench" in _facts:
                for m_ in ms_ for c_ in ("contrast", "brightness", "fog", "gaussian_noise"))
     short = {"cifar10_resnet20": "R-20", "cifar10_resnet56": "R-56", "cifar10_vgg13_bn": "VGG"}
     lines = [r"\begin{table}[!htbp]",
-             r"\caption{CIFAR-10-C, pretrained ResNet-20 (R-20), ResNet-56 (R-56) and VGG-13-BN (VGG), first convolution padded with zeros (as trained) or reflect. Errors are five-severity means with zero padding; the gain is the error with zero padding minus that with reflect padding (positive: reflect helps). The paired standard errors of the BN-adapt gains lie between " + f"{math.floor(min(_ses) * 1e4) / 1e4:.4f} and {math.ceil(max(_ses) * 1e4) / 1e4:.4f}" + r"; every BN-adapt gain under a corruption exceeds three times its standard error in magnitude.}",
+             r"\caption{CIFAR-10-C, pretrained ResNet-20 (R-20), ResNet-56 (R-56) and VGG-13-BN (VGG), first convolution padded with zeros (as trained) or reflect. Errors: five-severity means with zero padding; gain: error with zero padding minus error with reflect padding. The paired standard errors of the BN-adapt gains lie between " + f"{math.floor(min(_ses) * 1e4) / 1e4:.4f} and {math.ceil(max(_ses) * 1e4) / 1e4:.4f}" + r"; every BN-adapt gain under a corruption exceeds three times its standard error in magnitude.}",
              r"\label{tab:bench}",
              r"\centering\scriptsize\setlength{\tabcolsep}{2.5pt}",
              r"\begin{tabular}{l" + "c" * (3 * len(ms_) + 1) + "}", r"\toprule",

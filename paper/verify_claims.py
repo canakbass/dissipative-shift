@@ -276,7 +276,7 @@ _V1a = {f"{q['v']:.3f}": q for q in F("fjr_adapt")}
 _hd = [_V[k]["d_raw_mean"] for _V in (_V0, _V1) for k in _outer2]
 for lab, tpl in (("abstract", "first layer, $@$ to $@$ more error in one case than the other at the two pairs"),
                  ("contribution", "errs $@$ to $@$ more on one member beyond"),
-                 ("section", "cost a frozen classifier trained for 200 epochs\n$@$ to $@$ more error"),
+                 ("section", "cost a frozen classifier with batch normalization trained for 200 epochs\n$@$ to $@$ more error"),
                  ("discussion", "errs $@$ to $@$ more on one of\nthem"),
                  ("conclusion", "epochs, $@$ to $@$ more error in one case than in the other once it\nextrapolates")):
     check(f"headline range ({lab})", tpl, min(_hd), max(_hd))
@@ -292,45 +292,63 @@ for _old in (r"about\s+a\s+fifth", r"about\s+an\s+eighth", r"Part\s+of\s+this\s+
 word("normalization removes it with reflect padding", "with reflect padding, test-time\nnormalization removes that excess entirely",
      _v1_bn_clean and max(F("pad_c10_bn_commuting_max"), F("pad_c100_bn_commuting_max")) < 0.005
      and not any(_P[k]["bnadapt"][q]["positive"] for _P in (_P10, _P100) for k in ("reflect", "circular", "haze") for q in _pv))
-word("contribution: normalization removes it with reflect padding", "with reflect padding, test-time normalization removes the\nexcess", _v1_bn_clean)
-word("not a zero-padding artefact", "It is not\nan artefact of the first convolution's zero padding",
-     sum(_V1[k]["positive"] for k in _V1 if float(k) > 0.05) >= 2)
-check("V1: full gap", "Trained with reflect padding,\nthe model keeps the full gap, $@$ and $@$ in every seed", *[_V1[k]["d_raw_mean"] for k in _outer2])
 word("V1: full gap (condition)", "the model keeps the full gap",
      all(_V1[k]["positive"] for k in _outer2) and mean([_V1[k]["d_raw_mean"] for k in _outer2]) > 0.9 * mean([_V0[k]["d_raw_mean"] for k in _outer2])
      and min(_V1[k]["d_raw_mean"] for k in _outer2) > max(F("pad_c10_commuting_outer")))
-word("CIFAR-100 three outer pairs at inference", "on CIFAR-100 all three outer pairs pass\nwith either padding",
-     F("pad_c100_outer_positive")["reflect"] == 3 == F("pad_c100_outer_positive")["circular"])
+# the normalization ablation (V2 GroupNorm 32, V3 layer norm, V4 standardized input), retrained
+_N = {k: {f"{q['v']:.3f}": q for q in F(k + "_pairs")} for k in ("fjgn", "fjln", "fjstd")}
+_outer3 = [k for k in _V1 if float(k) > 0.05]
+_npos = {k: sum(_N[k][v]["positive"] for v in _outer3) for k in _N}
+_norm_max = max(abs(q["d_raw_mean"]) for k in _N for q in _N[k].values())
+word("contribution: reflect padding or per-image normalization removes the excess",
+     "test-time normalization with reflect padding,\nor normalizing each image, removes most or all of the excess",
+     _v1_bn_clean and _norm_max < 0.5 * min(_V0[k]["d_raw_mean"] for k in _outer2))
+check("abstract: per-image normalization", "models that\nnormalize each image err less than $@$ more", _norm_max, rnd="up")
+word("depends on BN, not on zero padding", "It depends on\nbatch normalization, not on the first convolution's zero padding",
+     sum(_V1[k]["positive"] for k in _outer3) >= 2 and _npos["fjgn"] <= 1 and _npos["fjln"] <= 1)
+check("V1: full gap", "trained with reflect padding, the model keeps the full gap, $@$ and $@$ in\nevery seed",
+      *[_V1[k]["d_raw_mean"] for k in _outer2])
+check("inference padding lowers the gap", "lowers it to $@$\nto $@$", *F("pad_c10_commuting_outer"))
+check("normalization: outer gaps", "the gaps at the outer pairs stay below $@$ and pass\nthe rule at none and at one of the three",
+      max(abs(_N[k][v]["d_raw_mean"]) for k in ("fjgn", "fjln") for v in _outer3), rnd="up")
+word("normalization: none and one", "pass\nthe rule at none and at one of the three", (_npos["fjgn"], _npos["fjln"]) == (0, 1))
+check("normalization: clean errors", "at a cost in clean error ($@$ and\n$@$, against $@$)",
+      F("fjgn_clean_err")[0], F("fjln_clean_err")[0], F("fjf_clean_err")[0])
+check("standardized: clean error", "the model has no gap and a clean error of\n$@$", F("fjstd_clean_err")[0])
+word("standardized: no gap", "the model has no gap",
+     _npos["fjstd"] == 0 and all(abs(q["d_raw_mean"]) < 0.01 for q in _N["fjstd"].values())
+     and not any(q["bn_positive"] for q in F("fjstd_adapt")))
+word("discussion: per-image normalization avoids most", "normalizing each image avoids most of it",
+     _norm_max < 0.5 * min(_V0[k]["d_raw_mean"] for k in _outer2))
+word("retrained models on CIFAR-10 only", "The retrained models (other padding, other normalization)\nwere run on CIFAR-10 only",
+     not glob.glob(os.path.join(ROOT, "oct3", "c100-fog-joint-full-*-s*")))
+_gn = r"^        return nn\.GroupNorm\(32, channels\)$"
+for tpl in ("with GroupNorm (@ groups) or layer\nnormalization", "by GroupNorm with $@$ groups or with one group",
+            "with GroupNorm (@ groups) or layer normalization in place of batch normalization, or on standardized images"):
+    design(f"GroupNorm groups: {tpl[:25]}", tpl, 32 if re.search(_gn, src("kaggle_oct3_runner/runner.py"), re.M) else -1)
+word("layer norm is one group", "with one group (layer normalization)",
+     re.search(r"^        return nn\.GroupNorm\(1, channels\)$", src("kaggle_oct3_runner/runner.py"), re.M) is not None, cls="design")
+check("rules: normalization counts", "outer pairs passing $@$ of $@$ with GroupNorm, $@$ of $@$ with layer normalization",
+      _npos["fjgn"], len(_outer3), _npos["fjln"], len(_outer3))
+word("rules: standardized no gap", "standardized input leaves no gap", _npos["fjstd"] == 0)
 check("V1: BN-adapt within", "and to within $@$ in the model trained with reflect padding",
       max(abs(q["bn_gap"]) for q in F("fjr_adapt")), rnd="up")
 word("V1: BN-adapt within (condition)", "in the model trained with reflect padding", _v1_bn_clean)
 word("discussion: normalization removes it unless zero padding", "test-time normalization removes the excess unless the first layer pads with zeros",
      _v1_bn_clean and not any(_P[k]["bnadapt"][q]["positive"] for _P in (_P10, _P100) for k in ("reflect", "circular", "haze") for q in _pv)
      and all(_P10["zeros"]["bnadapt"][q]["positive"] for q in _pv))
-word("V1 on CIFAR-10 only", "The model trained with reflect padding was run on\nCIFAR-10 only",
-     not glob.glob(os.path.join(ROOT, "oct3", "c100-fog-joint-full-reflect-s*")))
 word("appendix: V1 keeps the frozen gap", "keeps the frozen gap at the two outer pairs, and with\nBN-adapt no pair passes",
      all(_V1[k]["positive"] for k in _outer2) and _v1_bn_clean)
 check("appendix: V1 clean error", "BN-adapt no pair passes; clean error $@$", F("fjr_clean_err")[0])
 word("appendix: V1 three seeds", "trained with reflect padding (three\nseeds;",
-     F("fjr_pairs")[0]["seeds"] == [1, 2, 3] and "FULL_BUDGET = JOB.endswith(\"_full\") or JOB.endswith(\"_full_reflect\")" in src("kaggle_oct3_runner/runner.py"), cls="design")
+     F("fjr_pairs")[0]["seeds"] == [1, 2, 3] and re.search(r'^FULL_BUDGET = JOB in \("fog_joint_full", "c100_fog_joint_full", "fog_joint_full_reflect"\)', src("kaggle_oct3_runner/runner.py"), re.M) is not None, cls="design")
 check("rules: V1 counts", "Frozen: $@$ of $@$ outer pairs pass, so the gap is not a zero-padding artefact",
       sum(_V1[k]["positive"] for k in _V1 if float(k) > 0.05), sum(1 for k in _V1 if float(k) > 0.05))
 word("rules: V1 BN-adapt", "a zero-padding artefact; BN-adapt: no pair passes", _v1_bn_clean)
 _mcf = F("matched_contrast")
 check("border mismatch growth", "about $@$ to $@$ for the drift members and\n$@$ to $@$ for the diffusion members",
       *[(1 - _mcf[k]["drift"]) / _mcf[k]["drift"] for k in ("0.089", "0.490")], *[(1 - _mcf[k]["diffuse"]) / _mcf[k]["diffuse"] for k in ("0.089", "0.490")])
-check("padding: frozen gaps", "the frozen model's gap at $v = @$ and\n$@$ falls from $@$ and $@$ to $@$ to $@$, still in every seed",
-      float(_outer2[0]), float(_outer2[1]), _P10["zeros"]["frozen"][_outer2[0]]["gap"], _P10["zeros"]["frozen"][_outer2[1]]["gap"], *_hc)
 _v089 = [k for k in _pv if k not in _outer2 and float(k) > 0.05][0]
-check("padding: v=0.089 drops", "at $v = @$ the gap no longer passes the rule", float(_v089))
-word("padding: v=0.089 drops (condition)", "the gap no longer passes the rule",
-     _P10["zeros"]["frozen"][_v089]["positive"] and not _P10["reflect"]["frozen"][_v089]["positive"] and not _P10["circular"]["frozen"][_v089]["positive"])
-check("padding: clean error", "clean error barely\nmoves ($@$, against $@$ with either padding)",
-      _P10["zeros"]["clean_frozen"], _P10["reflect"]["clean_frozen"])
-word("padding: either padding same clean error", "against $0.114$ with either padding",
-     round(_P10["reflect"]["clean_frozen"], 3) == round(_P10["circular"]["clean_frozen"], 3))
-check("padding: standardization clean error", "clean error rising from $@$ to $@$", _P10["zeros"]["clean_frozen"], _P10["standardize"]["clean_frozen"])
 check("padding: BN-adapt closes", "BN-adapt closes the gap at every pair, to within $@$ on CIFAR-10 and on\nCIFAR-100",
       max(F("pad_c10_bn_commuting_max"), F("pad_c100_bn_commuting_max")), rnd="up")
 word("adaptation leaves a gap with zero padding", "a gap remains after adaptation",
@@ -344,7 +362,7 @@ _bn_clean = not any(_P[k]["bnadapt"][q]["positive"] for _P in (_P10, _P100) for 
 word("appendix: BN-adapt gap disappears", "Under BN-adapt the gap disappears with every commuting padding, at every pair, on\nboth data sets", _bn_clean)
 word("appendix: frozen gap persists", "In the frozen model it persists at the two outer pairs of CIFAR-10\nand the three outer pairs of CIFAR-100",
      len(_outer2) == 2 and F("pad_c100_outer_positive")["reflect"] == 3 == F("pad_c100_outer_positive")["circular"])
-check("padding table header", "Dataset & First-layer padding & $@$ & $@$ & $@$ & $@$ & $@$ & $@$ & $@$ & $@$", *[float(k) for k in _pv + _pv])
+check("padding table header", "Dataset & Variant & $@$ & $@$ & $@$ & $@$ & $@$ & $@$ & $@$ & $@$", *[float(k) for k in _pv + _pv])
 
 # --- CIFAR-10-C padding with pretrained models
 _B, _BM = F("bench"), F("bench_models")
@@ -370,13 +388,9 @@ _ab = src("bench/analyze_bench.py")
 word("bench: rule as in the analysis script", "supported for a corruption\nif the gain is positive for all three models and above three standard errors for two,\nand rejected if it is at most one standard error for two",
      'all(x["G"] > 0 for x in s) and sum(x["G"] > 3 * x["SE"] for x in s) >= 2' in _ab and 'sum(x["G"] <= x["SE"] for x in s) >= 2' in _ab, cls="design")
 _vc = _B["cifar10_vgg13_bn|contrast|bnadapt"]
-word("bench: only VGG-13-BN contrast helps", "the one gain, $0.0028$ for VGG-13-BN under contrast",
+word("bench: only VGG-13-BN contrast helps", "the\none gain, for VGG-13-BN under contrast",
      [k for k, x in _B.items() if k.endswith("|bnadapt") and "|clean|" not in k and x["G"] > 0] == ["cifar10_vgg13_bn|contrast|bnadapt"])
-check("bench: VGG contrast gain", "the one gain, $@$ for VGG-13-BN under contrast, comes\nalmost entirely from the most severe level ($@$ there)",
-      _vc["G"], _vc["per_severity"][4])
 word("bench: almost all from severity 5", "almost entirely from the most severe level", _vc["per_severity"][4] / 5 > 0.9 * _vc["G"])
-check("bench: frozen within", "notice the change under these\nthree (gain within $@$)",
-      max(abs(_B[f"{m_}|{c_}|frozen"]["G"]) for m_ in _BM for c_ in ("contrast", "brightness", "fog")), rnd="up")
 word("bench: contrast and brightness deterministic", "contrast and brightness are deterministic",
      "np.random" not in src("bench/make_cifar10c_subset.py").split("def contrast")[1].split("def main")[0], cls="design")
 # =========================================================================== introduction
