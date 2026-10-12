@@ -1,4 +1,4 @@
-# Separating Avoidable and Unavoidable Error Under Dissipative Distribution Shift
+# Avoidable and Unavoidable Error Under Dissipative Distribution Shift
 
 Code, result files and checking scripts for the paper of the same title
 (Can Akbaş, Manisa Celal Bayar University).
