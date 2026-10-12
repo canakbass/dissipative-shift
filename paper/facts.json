@@ -4179,6 +4179,7 @@
  "kt_noise_delta_max": 0.004027135411362737,
  "kt_noise_extrap_max": 0.00173011668691192,
  "kt_noise_slack_max": 0.004227135411362742,
+ "lambda_largest_worst_everywhere": false,
  "lambda_min_ratio": {
   "0.02": 1.1348314857571156,
   "0.05": 0.904761867218036,

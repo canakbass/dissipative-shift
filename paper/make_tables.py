@@ -150,8 +150,8 @@ for p in sorted(glob.glob(f"{BASE}/oct3/adam-main-s[0-9]/output/cifar10_c_result
     AM += [json.loads(l) for l in open(p)]
 am_names = {"blurfft_s15_a01": "Heat-equation blur", "fog_beer_lambert": "OU fog", "gauss_blur": "Deterministic blur (control)"}
 lines = [r"\begin{table}[!htbp]",
-         r"\caption{The four families rerun with Adam for TENT and EATA: oracle error and measured avoidable error $\Delta_X(t)$, three seeds, mean $\pm$ SD, every quantity from one run per seed (noise in runs of its own); $\dagger$ marks training severities.}",
-         r"\centering\scriptsize\setlength{\tabcolsep}{2.5pt}\renewcommand{\arraystretch}{0.9}",
+         r"\caption{The four families rerun with Adam: oracle error and $\Delta_X(t)$, three seeds, mean $\pm$ SD, one run per seed (noise in its own runs); $\dagger$: training severities.}",
+         r"\centering\scriptsize\setlength{\tabcolsep}{2.5pt}\renewcommand{\arraystretch}{0.85}",
          r"\begin{tabular}{llrrrrrl}", r"\toprule",
          r"Family & $t$ & $\mathrm{Err}_{\text{oracle}}$ & $\Delta_{\text{frozen}}$ & $\Delta_{\text{BN-adapt}}$ & $\Delta_{\text{TENT}}$ & $\Delta_{\text{EATA}}$ & \\", r"\midrule"]
 FX = []
@@ -323,7 +323,7 @@ if "pad_c10" in _facts and "pad_c100" in _facts:
     names = {"zeros": "zero (as trained)", "reflect": "reflect", "circular": "circular", "haze": "haze value",
              "standardize": "standardized at inference"}
     lines = [r"\begin{table}[!htbp]",
-             r"\caption{The 200-epoch joint model with its first convolution padded in five ways at inference, and retrained (``trained'') with reflect padding, with GroupNorm (32 groups) or layer normalization in place of batch normalization, or on standardized images: gap, error on the drift member minus error on the diffusion member of each matched fog pair, three-seed means. A star marks a pair that passes the decision rule of Section~\ref{sec:fog-ablation}.}",
+             r"\caption{The 200-epoch joint model with its first convolution padded in five ways at inference, and retrained (``trained'') with reflect padding, GroupNorm, layer normalization or standardized input: gap, error on the drift minus the diffusion member of each matched fog pair, three-seed means. A star marks a pair that passes the decision rule of Section~\ref{sec:fog-ablation}.}",
              r"\label{tab:padding}",
              r"\centering\scriptsize\setlength{\tabcolsep}{3pt}",
              r"\begin{tabular}{llcccccccc}", r"\toprule",
@@ -378,7 +378,7 @@ if "bench" in _facts:
                for m_ in ms_ for c_ in ("contrast", "brightness", "fog", "gaussian_noise"))
     short = {"cifar10_resnet20": "R-20", "cifar10_resnet56": "R-56", "cifar10_vgg13_bn": "VGG"}
     lines = [r"\begin{table}[!htbp]",
-             r"\caption{CIFAR-10-C, pretrained ResNet-20 (R-20), ResNet-56 (R-56) and VGG-13-BN (VGG), first convolution padded with zeros (as trained) or reflect. Errors: five-severity means with zero padding; gain: error with zero padding minus error with reflect padding. The paired standard errors of the BN-adapt gains lie between " + f"{math.floor(min(_ses) * 1e4) / 1e4:.4f} and {math.ceil(max(_ses) * 1e4) / 1e4:.4f}" + r"; every BN-adapt gain under a corruption exceeds three times its standard error in magnitude.}",
+             r"\caption{CIFAR-10-C, pretrained ResNet-20 (R-20), ResNet-56 (R-56) and VGG-13-BN (VGG), first convolution padded with zeros (as trained) or reflect. Errors: five-severity means, zero padding; gain: zero-padding minus reflect-padding error. Paired standard errors of the BN-adapt gains lie between " + f"{math.floor(min(_ses) * 1e4) / 1e4:.4f} and {math.ceil(max(_ses) * 1e4) / 1e4:.4f}" + r"; every BN-adapt gain under a corruption exceeds three times its standard error in magnitude.}",
              r"\label{tab:bench}",
              r"\centering\scriptsize\setlength{\tabcolsep}{2.5pt}",
              r"\begin{tabular}{l" + "c" * (3 * len(ms_) + 1) + "}", r"\toprule",

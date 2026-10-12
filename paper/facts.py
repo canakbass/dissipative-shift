@@ -277,6 +277,8 @@ F["dann_heat_t2"] = {tag: dh[tag][2.0] for tag in dh}
 # ------------------------------------------------------------------ lambda sweep
 LS = load("kaggle_dann_lambda_sweep/output_seed1/cifar10_c_results_dann_lambda_sweep_seed1.jsonl")
 F["lambda_min_ratio"] = {r["t"]: min(r["delta_dann"].values()) / r["delta_frozen"] for r in LS}
+# the pre-specified prediction that the largest lambda_max is worst at every severity
+F["lambda_largest_worst_everywhere"] = all(max(r["delta_dann"], key=lambda k: r["delta_dann"][k]) == max(r["delta_dann"], key=float) for r in LS)
 F["tent_sgd_ratio_noise"] = {t: m("gauss_noise", t, "delta_tent") / m("gauss_noise", t, "delta_frozen")
                              for t in held_out("gauss_noise")}
 
