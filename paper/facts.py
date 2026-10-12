@@ -517,7 +517,7 @@ def _m3(xs):
 
 
 # --- like-for-like Wiener witness: same periodic operator, eps chosen on a held-out split
-WL = _oct3("wiener-lfl-s*/output/wiener_lfl_seed*.jsonl")
+WL = _oct3("wiener-lfl-s[0-9]/output/wiener_lfl_seed*.jsonl")
 wl = {}
 for t in sorted({r["t"] for r in WL}):
     rs = [r for r in WL if r["t"] == t]
@@ -542,7 +542,7 @@ F["wiener_lfl"] = wl
 F["wiener_lfl_seeds"] = sorted({r["seed"] for r in WL})
 
 # --- fog_common: matched-v pairs (decision rule fixed before the runs)
-FC = _oct3("fog-common-s*/output/cifar10_c_results_fog_common_seed*.jsonl")
+FC = _oct3("fog-common-s[0-9]/output/cifar10_c_results_fog_common_seed*.jsonl")
 fcb = {(r["family"], round(r["t"], 4), r["model"], r["seed"]): r for r in FC}
 fc_seeds = sorted({r["seed"] for r in FC})
 F["fc_seeds"] = fc_seeds
@@ -592,8 +592,8 @@ F["fc_clean_drift_t1"] = dict(raw=mean([fcb[("fog_drift", 1.0, "clean", s)]["err
 F["fc_clean_beyond_chance_v"] = min(r["v"] for r in FC if r["model"] == "clean" and r["err_frozen_inv"] > 0.85)
 
 # --- blur factorial on one periodic FFT operator (BN-adapt error removed at each severity)
-FB = _oct3("blur-factorial-s*/output/cifar10_c_results_factorial_seed*.jsonl") + \
-     _oct3("blur-factorial-extra-s*/output/cifar10_c_results_factorial_extra_seed*.jsonl")
+FB = _oct3("blur-factorial-s[0-9]/output/cifar10_c_results_factorial_seed*.jsonl") + \
+     _oct3("blur-factorial-extra-s[0-9]/output/cifar10_c_results_factorial_extra_seed*.jsonl")
 fact = {}
 for fam in sorted({r["family"] for r in FB}):
     for t in sorted({r["t"] for r in FB if r["family"] == fam}):
@@ -604,7 +604,7 @@ F["blur_factorial"] = fact
 
 
 # --- TENT/EATA with Adam for the families that had only the SGD setting
-AM = _oct3("adam-main-s*/output/cifar10_c_results_adam_main_seed*.jsonl")
+AM = _oct3("adam-main-s[0-9]/output/cifar10_c_results_adam_main_seed*.jsonl")
 F["adam_main_seeds"] = sorted({r["seed"] for r in AM})
 FAMMAP = {"blurfft_s15_a01": "blur_heat", "gauss_blur": "gauss_blur", "fog_beer_lambert": "fog_beer_lambert"}
 am = {}
@@ -663,7 +663,7 @@ F["dann_heat_within_yardstick"] = (all(abs(x) <= F["yardstick"] for tag in dh fo
 F["dann_vs_tent"] = dann
 
 # --- Tiny-ImageNet rerun: Adam, float64 statistics (results rebuilt from the kernel log)
-TA = _oct3("tin-adam-s*/output/tin_results_tin_adam_seed*.jsonl")
+TA = _oct3("tin-adam-s[0-9]/output/tin_results_tin_adam_seed*.jsonl")
 F["tin_adam"] = {r["t"]: r for r in TA}
 
 
@@ -700,24 +700,24 @@ def _joint(pattern, key):
     F[key + "_npos"] = sum(r["positive"] for r in out)
 
 
-_joint("fog-joint-s*/output/cifar10_c_results_fog_joint_seed*.jsonl", "fj_pairs")
-_joint("c100-fog-joint-s*/output/cifar100_c_results_c100_fog_joint_seed*.jsonl", "fj100_pairs")
-_joint("fog-joint-full-s*/output/cifar10_c_results_fog_joint_full_seed*.jsonl", "fjf_pairs")
-_joint("c100-fog-joint-full-s*/output/cifar100_c_results_c100_fog_joint_full_seed*.jsonl", "fjf100_pairs")
+_joint("fog-joint-s[0-9]/output/cifar10_c_results_fog_joint_seed*.jsonl", "fj_pairs")
+_joint("c100-fog-joint-s[0-9]/output/cifar100_c_results_c100_fog_joint_seed*.jsonl", "fj100_pairs")
+_joint("fog-joint-full-s[0-9]/output/cifar10_c_results_fog_joint_full_seed*.jsonl", "fjf_pairs")
+_joint("c100-fog-joint-full-s[0-9]/output/cifar100_c_results_c100_fog_joint_full_seed*.jsonl", "fjf100_pairs")
 # the same model trained with reflect padding in its first convolution (rule fixed before the run)
-_FJR = "fog-joint-full-reflect-s*/output/cifar10_c_results_fog_joint_full_reflect_seed*.jsonl"
+_FJR = "fog-joint-full-reflect-s[0-9]/output/cifar10_c_results_fog_joint_full_reflect_seed*.jsonl"
 _joint(_FJR, "fjr_pairs")
 # normalization ablation (rule fixed before the runs): GroupNorm(32), GroupNorm(1), standardized input
-_FJN = {"fjgn": "fog-joint-full-gn32-s*/output/cifar10_c_results_fog_joint_full_gn32_seed*.jsonl",
-        "fjln": "fog-joint-full-ln-s*/output/cifar10_c_results_fog_joint_full_ln_seed*.jsonl",
-        "fjstd": "fog-joint-full-std-s*/output/cifar10_c_results_fog_joint_full_std_seed*.jsonl"}
+_FJN = {"fjgn": "fog-joint-full-gn32-s[0-9]/output/cifar10_c_results_fog_joint_full_gn32_seed*.jsonl",
+        "fjln": "fog-joint-full-ln-s[0-9]/output/cifar10_c_results_fog_joint_full_ln_seed*.jsonl",
+        "fjstd": "fog-joint-full-std-s[0-9]/output/cifar10_c_results_fog_joint_full_std_seed*.jsonl"}
 for _k, _p in _FJN.items():
     if len({r["seed"] for r in _oct3(_p)}) == 3:
         _joint(_p, _k + "_pairs")
-for _k, _p in (("fj", "fog-joint-s*/output/cifar10_c_results_fog_joint_seed*.jsonl"),
-               ("fj100", "c100-fog-joint-s*/output/cifar100_c_results_c100_fog_joint_seed*.jsonl"),
-               ("fjf", "fog-joint-full-s*/output/cifar10_c_results_fog_joint_full_seed*.jsonl"),
-               ("fjf100", "c100-fog-joint-full-s*/output/cifar100_c_results_c100_fog_joint_full_seed*.jsonl"),
+for _k, _p in (("fj", "fog-joint-s[0-9]/output/cifar10_c_results_fog_joint_seed*.jsonl"),
+               ("fj100", "c100-fog-joint-s[0-9]/output/cifar100_c_results_c100_fog_joint_seed*.jsonl"),
+               ("fjf", "fog-joint-full-s[0-9]/output/cifar10_c_results_fog_joint_full_seed*.jsonl"),
+               ("fjf100", "c100-fog-joint-full-s[0-9]/output/cifar100_c_results_c100_fog_joint_full_seed*.jsonl"),
                ("fjr", _FJR)) + tuple(_FJN.items()):
     _cl = [r["err_frozen"] for r in _oct3(_p) if r["family"] == "clean"]
     if _cl:
@@ -752,17 +752,17 @@ def _fc_pairs(rows, models=("drift_matched", "diffuse_own")):
     return out
 
 
-F["c100_fc_pairs"] = _fc_pairs(_oct3("c100-fog-common-s*/output/cifar100_c_results_c100_fog_common_seed*.jsonl"))
-for _key, _pat in (("c100", "c100-fog-common-s*/output/cifar100_c_results_c100_fog_common_seed*.jsonl"),
-                   ("tin", "tin-fog-common-s*/output/tin_results_tin_fog_common_seed*.jsonl")):
+F["c100_fc_pairs"] = _fc_pairs(_oct3("c100-fog-common-s[0-9]/output/cifar100_c_results_c100_fog_common_seed*.jsonl"))
+for _key, _pat in (("c100", "c100-fog-common-s[0-9]/output/cifar100_c_results_c100_fog_common_seed*.jsonl"),
+                   ("tin", "tin-fog-common-s[0-9]/output/tin_results_tin_fog_common_seed*.jsonl")):
     _rr = _oct3(_pat)
     _vd = [r["v"] for r in _rr if r["family"] == "fog_diffuse"]
     _cl = [r["err_frozen"] for r in _rr if r["model"] == "clean"            # matched-pair points only
            and any(abs(r["v"] - v) / v < 1e-3 for v in _vd)]
     if _cl:
         F[f"{_key}_clean_err_min"], F[f"{_key}_clean_err_max"] = min(_cl), max(_cl)
-F["tin_fc_pairs"] = _fc_pairs(_oct3("tin-fog-common-s*/output/tin_results_tin_fog_common_seed*.jsonl"))
-CB = _oct3("c100-blur-s*/output/cifar100_c_results_c100_blur_seed*.jsonl")
+F["tin_fc_pairs"] = _fc_pairs(_oct3("tin-fog-common-s[0-9]/output/tin_results_tin_fog_common_seed*.jsonl"))
+CB = _oct3("c100-blur-s[0-9]/output/cifar100_c_results_c100_blur_seed*.jsonl")
 if CB:
     cb = {}
     for fam in ("gauss_blur", "blurfft_s15_a01"):
@@ -807,8 +807,12 @@ for r in FC:
     _pts.append((f"fc/{r['family']}/{r['model']}", "witness", r["v"], r["seed"], r["err_frozen"]))
     if r["model"] == "clean":
         _pts.append((f"fc/{r['family']}", "oracle", r["v"], r["seed"], r["err_oracle"]))
-for tag, pat in (("joint15", "fog-joint-s*/output/cifar10_c_results_fog_joint_seed*.jsonl"),
-                 ("joint200", "fog-joint-full-s*/output/cifar10_c_results_fog_joint_full_seed*.jsonl")):
+# the joint model at 200 epochs, as trained and retrained with reflect padding, GroupNorm,
+# layer normalization or standardized input: each is a fixed classifier of the corrupted image
+for tag, pat in (("joint15", "fog-joint-s[0-9]/output/cifar10_c_results_fog_joint_seed*.jsonl"),
+                 ("joint200", "fog-joint-full-s[0-9]/output/cifar10_c_results_fog_joint_full_seed*.jsonl"),
+                 ("joint200_reflect", _FJR), ("joint200_gn", _FJN["fjgn"]), ("joint200_ln", _FJN["fjln"]),
+                 ("joint200_std", _FJN["fjstd"])):
     for r in _oct3(pat):
         if r["family"] != "clean":
             _pts.append((f"{tag}/{r['family']}", "witness", r["v"], r["seed"], r["err_frozen"]))
@@ -836,6 +840,10 @@ F["cert_15epoch_detail"] = [dict(oracle=c["oracle"], v=c["v"], seed=c["seed"], w
 _v_train = min(r["v"] for r in F["fc_pairs"])   # the pair at which both members are training severities
 _c042 = [c["slack"] for c in _pos if c["oracle"].startswith("fc/") and abs(c["v"] - _v_train) < 1e-6 * _v_train]
 F["cert_fc_042_min"], F["cert_fc_042_max"] = min(_c042), max(_c042)
+# which 200-epoch models are the witnesses (the best fixed classifier at a point wins)
+F["cert_joint200_witness_models"] = sorted({c["witness"].split("/")[0] for c in _pos if c["witness"].startswith("joint200")})
+F["cert_fc_042_witness_models"] = sorted({c["witness"].split("/")[0] for c in _pos
+                                          if c["oracle"].startswith("fc/") and abs(c["v"] - _v_train) < 1e-6 * _v_train})
 
 # --- contrast and raw noise variance: the joint and separate models' training grids
 # (read from the result rows) and the matched points. Regime parameters come from the
@@ -854,8 +862,8 @@ def _rawvar(fam, t):
     return sg * sg / (2 * a) * (1 - math.exp(-2 * a * t))
 
 
-_jrows = [r for r in _oct3("fog-joint-full-s*/output/cifar10_c_results_fog_joint_full_seed*.jsonl")
-          + _oct3("fog-joint-s*/output/cifar10_c_results_fog_joint_seed*.jsonl") if r["family"] != "clean"]
+_jrows = [r for r in _oct3("fog-joint-full-s[0-9]/output/cifar10_c_results_fog_joint_full_seed*.jsonl")
+          + _oct3("fog-joint-s[0-9]/output/cifar10_c_results_fog_joint_seed*.jsonl") if r["family"] != "clean"]
 _grids = {tuple(map(tuple, r["model_train_grid"])) for r in _jrows}
 assert len(_grids) == 1, _grids                      # every joint run used the same grid
 _grid = sorted(next(iter(_grids)))
@@ -872,16 +880,16 @@ F["matched_rawvar_ratio"] = {f"{r['v']:.3f}": dict(drift=_rawvar("fog_drift", r[
                              for r in F["fj_pairs"]}
 # the separate models' training grids (fog_common rows record them per model)
 _sep = {}
-for r in _oct3("fog-common-s*/output/cifar10_c_results_fog_common_seed*.jsonl"):
+for r in _oct3("fog-common-s[0-9]/output/cifar10_c_results_fog_common_seed*.jsonl"):
     if r["model"] in ("drift_matched", "diffuse_own"):
         _sep.setdefault(r["model"], set()).add(tuple(r["model_train_ts"]))
 assert all(len(v) == 1 for v in _sep.values()), _sep
 F["separate_train_contrasts"] = {m: sorted(_contrast("fog_drift" if m.startswith("drift") else "fog_diffuse", t)
                                            for t in next(iter(v))) for m, v in _sep.items()}
 
-# --- adaptation does not close the matched-pair gap (joint model, 200 epochs)
-for _key, _pat in (("fjf", "fog-joint-full-s*/output/cifar10_c_results_fog_joint_full_seed*.jsonl"),
-                   ("fjf100", "c100-fog-joint-full-s*/output/cifar100_c_results_c100_fog_joint_full_seed*.jsonl"),
+# --- the matched-pair gap after BN-adapt and TENT (200-epoch joint models)
+for _key, _pat in (("fjf", "fog-joint-full-s[0-9]/output/cifar10_c_results_fog_joint_full_seed*.jsonl"),
+                   ("fjf100", "c100-fog-joint-full-s[0-9]/output/cifar100_c_results_c100_fog_joint_full_seed*.jsonl"),
                    ("fjr", _FJR), ("fjstd", _FJN["fjstd"])):
     if _key + "_pairs" not in F:
         continue
@@ -941,8 +949,8 @@ def _pad_judge(by_seed, key):
     return dict(gap=mean(raw), gaps=raw, floor=max(abs(x) for x in inv), positive=pos)
 
 
-for _tag, _pat in (("c10", "padding-test-s*/output/cifar10_c_results_padding_test_seed*.jsonl"),
-                   ("c100", "c100-padding-test-s*/output/cifar100_c_results_c100_padding_test_seed*.jsonl")):
+for _tag, _pat in (("c10", "padding-test-s[0-9]/output/cifar10_c_results_padding_test_seed*.jsonl"),
+                   ("c100", "c100-padding-test-s[0-9]/output/cifar100_c_results_c100_padding_test_seed*.jsonl")):
     _rows = _oct3(_pat)
     if len({r["seed"] for r in _rows}) < 3:
         continue
@@ -957,11 +965,6 @@ for _tag, _pat in (("c10", "padding-test-s*/output/cifar10_c_results_padding_tes
     _out = [v for v in res["zeros"]["frozen"] if float(v) > 0.05]
     _pos2 = [v for v in _out if res["reflect"]["frozen"][v]["positive"] and res["circular"]["frozen"][v]["positive"]]
     F[f"pad_{_tag}_outer_positive"] = {k: sum(res[k]["frozen"][v]["positive"] for v in _out) for k in PAD_KINDS}
-    # share of the frozen gap that the first layer's zero padding accounts for, over the
-    # outer pairs that pass under both commuting paddings
-    _z = sum(res["zeros"]["frozen"][v]["gap"] for v in _pos2)
-    _c = mean([sum(res[k]["frozen"][v]["gap"] for v in _pos2) for k in ("reflect", "circular")])
-    F[f"pad_{_tag}_zero_share"] = 1 - _c / _z
     F[f"pad_{_tag}_commuting_outer"] = [min(res[k]["frozen"][v]["gap"] for k in ("reflect", "circular") for v in _pos2),
                                         max(res[k]["frozen"][v]["gap"] for k in ("reflect", "circular") for v in _pos2)]
     F[f"pad_{_tag}_bn_commuting_max"] = max(abs(res[k]["bnadapt"][v]["gap"]) for k in ("reflect", "circular", "haze")

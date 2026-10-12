@@ -15,7 +15,8 @@ Code, result files and checking scripts for the paper of the same title
 | `certified_extrapolation*.py` | Certified extrapolation of the equivalent noise, synthetic and on CIFAR-10 (CPU). |
 | `float32_saturation_check.py` | The float32 accumulation check described in the corrections log. |
 | `paper/` | `facts.py` (result files to `facts.json`), `verify_claims.py` (checks every number in the paper's source against the result files), `make_tables.py` and `make_figures.py`; in the full archive submitted with the paper, also the paper's LaTeX source. |
-| `PREREG_*.md` | Pre-registration documents, kept as written; each outcome was added after its run. |
+| `rules/` | English translations of the internal run plans that fixed the later decision rules before the runs (matched fog pairs, first-layer padding, CIFAR-10-C, retraining and normalization), with their recorded outcomes. `oct3/summarize.py`, `oct5/analyze_padding.py`, `oct10/analyze_variants.py` and `bench/analyze_bench.py` apply them to the result files. |
+| `PREREG_*.md` | Pre-specification documents (the paper's "pre-specified" predictions), kept as written; each outcome was added after its run. |
 | `SEMIGROUP_SCOPE.md` | Notes on which corruptions form a semigroup, and why. |
 
 ## Checking the numbers in the paper

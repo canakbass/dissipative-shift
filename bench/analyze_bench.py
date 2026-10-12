@@ -1,5 +1,5 @@
-"""Applies the decision rule fixed before the CIFAR-10-C padding run (the paper's
-appendix on first-layer padding) to its result file.
+"""Applies the decision rule fixed before the CIFAR-10-C padding run
+(rules/2026-10-05_cifar10c_padding.md) to its result file.
     python bench/analyze_bench.py [results.jsonl]
 The default is the file the paper's numbers come from."""
 import json

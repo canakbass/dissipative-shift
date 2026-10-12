@@ -146,7 +146,7 @@ print("cifar_table.tex written")
 # ---------------- reruns with Adam as the adaptation optimizer (3 October) ----------------
 import glob
 AM = []
-for p in sorted(glob.glob(f"{BASE}/oct3/adam-main-s*/output/cifar10_c_results_adam_main_seed*.jsonl")):
+for p in sorted(glob.glob(f"{BASE}/oct3/adam-main-s[0-9]/output/cifar10_c_results_adam_main_seed*.jsonl")):
     AM += [json.loads(l) for l in open(p)]
 am_names = {"blurfft_s15_a01": "Heat-equation blur", "fog_beer_lambert": "OU fog", "gauss_blur": "Deterministic blur (control)"}
 lines = [r"\begin{table}[!htbp]",
@@ -175,8 +175,8 @@ print("adam_table.tex written")
 
 # ---------------- blur factorial: error removed by BN-adapt (3 October) ----------------
 FBR = []
-for pat in ("blur-factorial-s*/output/cifar10_c_results_factorial_seed*.jsonl",
-            "blur-factorial-extra-s*/output/cifar10_c_results_factorial_extra_seed*.jsonl"):
+for pat in ("blur-factorial-s[0-9]/output/cifar10_c_results_factorial_seed*.jsonl",
+            "blur-factorial-extra-s[0-9]/output/cifar10_c_results_factorial_extra_seed*.jsonl"):
     for p in sorted(glob.glob(f"{BASE}/oct3/{pat}")):
         FBR += [json.loads(l) for l in open(p)]
 MAIN = {}
@@ -222,8 +222,8 @@ def _rows(pat):
     return out
 
 
-FCR = _rows("fog-common-s*/output/cifar10_c_results_fog_common_seed*.jsonl")
-FJR = _rows("fog-joint-s*/output/cifar10_c_results_fog_joint_seed*.jsonl")
+FCR = _rows("fog-common-s[0-9]/output/cifar10_c_results_fog_common_seed*.jsonl")
+FJR = _rows("fog-joint-s[0-9]/output/cifar10_c_results_fog_joint_seed*.jsonl")
 
 
 def _m(rows, fam, t, model, key="err_frozen"):
@@ -254,9 +254,9 @@ with open(f"{OUT}/matched_table.tex", "w") as f:
 print("matched_table.tex written")
 
 # ---------------- scale: matched fog pairs on CIFAR-100 and Tiny-ImageNet ----------------
-C1 = _rows("c100-fog-common-s*/output/cifar100_c_results_c100_fog_common_seed*.jsonl")
-CJ = _rows("c100-fog-joint-s*/output/cifar100_c_results_c100_fog_joint_seed*.jsonl")
-TF = _rows("tin-fog-common-s*/output/tin_results_tin_fog_common_seed*.jsonl")
+C1 = _rows("c100-fog-common-s[0-9]/output/cifar100_c_results_c100_fog_common_seed*.jsonl")
+CJ = _rows("c100-fog-joint-s[0-9]/output/cifar100_c_results_c100_fog_joint_seed*.jsonl")
+TF = _rows("tin-fog-common-s[0-9]/output/tin_results_tin_fog_common_seed*.jsonl")
 lines = [r"\begin{table}[!htbp]",
          r"\caption{Fog pairs matched in equivalent noise variance $v$ on CIFAR-100 (three seeds) and Tiny-ImageNet (one seed); means. Models as in Table~\ref{tab:matched}, trained for 15 epochs; the Tiny-ImageNet run has no joint model and omits the pair at $v = 0.042$.}",
          r"\label{tab:scale}", r"\centering\scriptsize\setlength{\tabcolsep}{4pt}",
@@ -285,16 +285,16 @@ def _jrows(pat):
 
 
 lines = [r"\begin{table}[t]",
-         r"\caption{The joint model at the short budget used elsewhere in the paper (15 epochs, one crop and flip per batch) and at the standard CIFAR budget (200 epochs, per-sample crop and flip), at the fog pairs matched in equivalent variance $v$. Error on the drift and the diffusion member, three-seed means; the two members have the same Bayes risk. ``Clean'' is the model's error on uncorrupted test images, measured only in the 200-epoch run; the joint model sees uncorrupted images in one fifth of its training data, so this is higher than for a model trained on clean images alone.}",
+         r"\caption{The joint model at the short budget used elsewhere in the paper (15 epochs, one crop and flip per batch) and at the standard CIFAR budget (200 epochs, per-sample crop and flip), at the fog pairs matched in equivalent variance $v$. Error on the drift and the diffusion member, three-seed means; the two members have the same Bayes risk. ``Clean'' is the model's error on uncorrupted test images, measured only in the 200-epoch run; the joint model sees uncorrupted images in one fifth of its training data, so this is higher than for a model trained on clean images alone. The last two columns give the 200-epoch model's gap after BN-adapt and after TENT (Adam).}",
          r"\label{tab:budget}", r"\centering\footnotesize\setlength{\tabcolsep}{4pt}",
-         r"\begin{tabular}{llcccccc}", r"\toprule",
-         r" & & \multicolumn{3}{c}{15 epochs} & \multicolumn{3}{c}{200 epochs} \\",
-         r"\cmidrule(lr){3-5}\cmidrule(lr){6-8}",
-         r"Dataset & $v$ & Drift & Diffusion & Gap & Drift & Diffusion & Gap \\", r"\midrule"]
-for name, short, full in (("CIFAR-10", "fog-joint-s*/output/cifar10_c_results_fog_joint_seed*.jsonl",
-                           "fog-joint-full-s*/output/cifar10_c_results_fog_joint_full_seed*.jsonl"),
-                          ("CIFAR-100", "c100-fog-joint-s*/output/cifar100_c_results_c100_fog_joint_seed*.jsonl",
-                           "c100-fog-joint-full-s*/output/cifar100_c_results_c100_fog_joint_full_seed*.jsonl")):
+         r"\begin{tabular}{llcccccccc}", r"\toprule",
+         r" & & \multicolumn{3}{c}{15 epochs} & \multicolumn{5}{c}{200 epochs} \\",
+         r"\cmidrule(lr){3-5}\cmidrule(lr){6-10}",
+         r"Dataset & $v$ & Drift & Diffusion & Gap & Drift & Diffusion & Gap & BN-adapt & TENT \\", r"\midrule"]
+for name, short, full in (("CIFAR-10", "fog-joint-s[0-9]/output/cifar10_c_results_fog_joint_seed*.jsonl",
+                           "fog-joint-full-s[0-9]/output/cifar10_c_results_fog_joint_full_seed*.jsonl"),
+                          ("CIFAR-100", "c100-fog-joint-s[0-9]/output/cifar100_c_results_c100_fog_joint_seed*.jsonl",
+                           "c100-fog-joint-full-s[0-9]/output/cifar100_c_results_c100_fog_joint_full_seed*.jsonl")):
     S_, L_ = _jrows(short), _jrows(full)
     for td in sorted({r["t"] for r in S_ if r["family"] == "fog_drift"}):
         v = [r["v"] for r in S_ if r["family"] == "fog_drift" and r["t"] == td][0]
@@ -303,11 +303,15 @@ for name, short, full in (("CIFAR-10", "fog-joint-s*/output/cifar10_c_results_fo
         for R__ in (S_, L_):
             a, b = _m(R__, "fog_drift", td, "joint"), _m(R__, "fog_diffuse", tD, "joint")
             cells += [f"{a:.3f}", f"{b:.3f}", f"${a - b:+.3f}$"]
+        for key in ("err_bnadapt", "err_tent"):   # the 200-epoch model's gap after adaptation
+            a = st.mean(r[key] for r in L_ if r["family"] == "fog_drift" and r["t"] == td)
+            b = st.mean(r[key] for r in L_ if r["family"] == "fog_diffuse" and r["t"] == tD)
+            cells.append(f"${a - b:+.3f}$")
         lines.append(" & ".join(cells) + r" \\")
     cl_s = [r["err_frozen"] for r in _rows(short) if r["family"] == "clean"]
     cl_l = [r["err_frozen"] for r in _rows(full) if r["family"] == "clean"]
-    lines.append(f"{name} & clean & \\multicolumn{{3}}{{c}}{{{st.mean(cl_s):.3f}}} & \\multicolumn{{3}}{{c}}{{{st.mean(cl_l):.3f}}} \\\\"
-                 if cl_s else f"{name} & clean & \\multicolumn{{3}}{{c}}{{---}} & \\multicolumn{{3}}{{c}}{{{st.mean(cl_l):.3f}}} \\\\")
+    lines.append(f"{name} & clean & \\multicolumn{{3}}{{c}}{{{st.mean(cl_s):.3f}}} & \\multicolumn{{5}}{{c}}{{{st.mean(cl_l):.3f}}} \\\\"
+                 if cl_s else f"{name} & clean & \\multicolumn{{3}}{{c}}{{---}} & \\multicolumn{{5}}{{c}}{{{st.mean(cl_l):.3f}}} \\\\")
 lines += [r"\bottomrule", r"\end{tabular}", r"\end{table}"]
 with open(f"{OUT}/budget_table.tex", "w") as f:
     f.write("\n".join(lines) + "\n")
@@ -317,7 +321,7 @@ print("budget_table.tex written")
 _facts = json.load(open(f"{BASE}/paper/facts.json"))
 if "pad_c10" in _facts and "pad_c100" in _facts:
     names = {"zeros": "zero (as trained)", "reflect": "reflect", "circular": "circular", "haze": "haze value",
-             "standardize": "standardized input"}
+             "standardize": "standardized at inference"}
     lines = [r"\begin{table}[!htbp]",
              r"\caption{The 200-epoch joint model with its first convolution padded in five ways at inference, and retrained (``trained'') with reflect padding, with GroupNorm (32 groups) or layer normalization in place of batch normalization, or on standardized images: gap, error on the drift member minus error on the diffusion member of each matched fog pair, three-seed means. A star marks a pair that passes the decision rule of Section~\ref{sec:fog-ablation}.}",
              r"\label{tab:padding}",

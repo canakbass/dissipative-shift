@@ -2613,21 +2613,21 @@
  ],
  "cert_15epoch_larger_v": 2,
  "cert_15epoch_same_v": 9,
- "cert_all_K": 324,
+ "cert_all_K": 420,
  "cert_all_by_15epoch": 11,
- "cert_all_by_joint200": 26,
+ "cert_all_by_joint200": 32,
  "cert_all_by_witness": {
   "fc/fog_drift": 5,
-  "joint200/fog_diffuse": 24,
-  "joint200/fog_drift": 2,
+  "joint200_std/fog_diffuse": 17,
+  "joint200_std/fog_drift": 15,
   "main/fog_beer_lambert": 3,
   "main/gauss_noise": 3
  },
  "cert_all_expected": 4.95,
- "cert_all_max": 0.06322495254790222,
+ "cert_all_max": 0.07025633214397972,
  "cert_all_n": 99,
- "cert_all_pos": 37,
- "cert_all_z": 3.607936522195422,
+ "cert_all_pos": 43,
+ "cert_all_z": 3.674736256384331,
  "cert_control": {
   "0.25": [
    0.0,
@@ -2657,8 +2657,14 @@
   0.01438403908588387,
   0.01798838126003488
  ],
- "cert_fc_042_max": 0.06322495254790222,
- "cert_fc_042_min": 0.030804996628973597,
+ "cert_fc_042_max": 0.07025633214397972,
+ "cert_fc_042_min": 0.037836376225051094,
+ "cert_fc_042_witness_models": [
+  "joint200_std"
+ ],
+ "cert_joint200_witness_models": [
+  "joint200_std"
+ ],
  "clean_oracle_mean": 0.12117499796052775,
  "control_inversion_list": [
   [
@@ -5142,7 +5148,6 @@
   "standardize": 0,
   "zeros": 3
  },
- "pad_c100_zero_share": 0.12784623214170987,
  "pad_c10_bn_commuting_max": 0.0037333333333333294,
  "pad_c10_bn_zeros": [
   0.0655666666666667,
@@ -5159,7 +5164,6 @@
   "standardize": 0,
   "zeros": 3
  },
- "pad_c10_zero_share": 0.21490506968693113,
  "rec_adam_blur_heat": {
   "blur_heat@0.5": 37.329279545469646,
   "blur_heat@1.0": 27.795567775028402,
