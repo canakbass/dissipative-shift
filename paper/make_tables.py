@@ -285,7 +285,7 @@ def _jrows(pat):
 
 
 lines = [r"\begin{table}[t]",
-         r"\caption{The joint model at the short budget used elsewhere in the paper (15 epochs, one crop and flip per batch) and at the standard CIFAR budget (200 epochs, per-sample crop and flip), at the fog pairs matched in equivalent variance $v$. Error on the drift and the diffusion member, three-seed means; the two members have the same Bayes risk. ``Clean'' is the model's error on uncorrupted test images, measured only in the 200-epoch run; the joint model sees uncorrupted images in one fifth of its training data, so this is higher than for a model trained on clean images alone. The last two columns give the 200-epoch model's gap after BN-adapt and after TENT (Adam).}",
+         r"\caption{The joint model at the short budget used elsewhere in the paper (15 epochs, one crop and flip per batch) and at the standard CIFAR budget (200 epochs, per-sample crop and flip), at the fog pairs matched in equivalent variance $v$. Error on the drift and the diffusion member, three-seed means; the two members have the same Bayes risk. ``Clean'' is the model's error on uncorrupted test images, measured only in the 200-epoch run; the joint model sees uncorrupted images in one fifth of its training data, so this is higher than for a model trained on clean images alone. The last two columns: the 200-epoch model's gap after BN-adapt and after TENT (Adam).}",
          r"\label{tab:budget}", r"\centering\footnotesize\setlength{\tabcolsep}{4pt}",
          r"\begin{tabular}{llcccccccc}", r"\toprule",
          r" & & \multicolumn{3}{c}{15 epochs} & \multicolumn{5}{c}{200 epochs} \\",
