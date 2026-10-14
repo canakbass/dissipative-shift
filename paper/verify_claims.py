@@ -239,10 +239,7 @@ KA = {r["t"]: r for r in load("kill_test_asym_results.jsonl")}
 KF = load("kill_test_fog_results.jsonl")
 
 # =========================================================================== abstract
-check("abstract blur frozen", "trained for 15 epochs, at similar error ($@$, $@$)",
-      F("gauss_blur_t2_frozen"), F("blur_heat_t2_frozen"))
 SLACK_MAX = max(F("kt_noise_slack_max"), F("kt_fog_slack_max"), F("kt_asym_slack_max"))
-check("abstract synthetic slack", "within $@$ of the Bayes risk in\nsynthetic checks", SLACK_MAX, rnd="up")
 prereg_rows = re.search(r"\\label\{tab:prereg\}.*?\\end\{table\}", BODY, re.S).group(0)
 first = re.findall(r"\n(?:Wiener|Fog ablation|DANN|TENT)[^&]*&[^&]*&\s*([^&]*?)\s*&", prereg_rows)
 word("appendix prereg count", "of these four, three were not met in their first test and one held",
@@ -272,11 +269,13 @@ _V0 = {f"{q['v']:.3f}": q for q in F("fjf_pairs")}
 _V1 = {f"{q['v']:.3f}": q for q in F("fjr_pairs")}
 _V1a = {f"{q['v']:.3f}": q for q in F("fjr_adapt")}
 _hd = [_V[k]["d_raw_mean"] for _V in (_V0, _V1) for k in _outer2]
-for lab, tpl in (("abstract", "first layer, $@$ to $@$ more\nerror in one case than the other at the two most extrapolated pairs"),
-                 ("contribution", "errs $@$ to $@$ more on\none member at the two most extrapolated pairs"),
-                 ("discussion", "errs $@$\nto $@$ more on one of two corruptions with the same information at the two most\nextrapolated pairs"),
-                 ("conclusion", "first layer, $@$ to $@$ more error\non one than the other at the two most extrapolated pairs")):
+for lab, tpl in (("abstract", "first layer, errs $@$ to $@$\nmore on the lower-contrast member at the two most extrapolated pairs"),
+                 ("contribution", "errs $@$ to $@$ more on the lower-contrast member at the two\nmost extrapolated pairs"),
+                 ("discussion", "errs $@$\nto $@$ more on the lower-contrast one of two corruptions with the same\ninformation at the two most extrapolated pairs"),
+                 ("conclusion", "first layer, $@$ to $@$ more error\non the lower-contrast one at the two most extrapolated pairs")):
     check(f"headline range ({lab})", tpl, min(_hd), max(_hd))
+word("abstract: the drift member is the lower-contrast one and errs more", "more on the lower-contrast member",
+     all(F("matched_contrast")[k]["drift"] < F("matched_contrast")[k]["diffuse"] and _V[k]["d_raw_mean"] > 0 for _V in (_V0, _V1) for k in _outer2))
 word("headline: the two most extrapolated pairs, every seed", "the two most extrapolated pairs (seed means, positive in each\nseed)",
      len(_outer2) == 2 and all(_V[k]["positive"] and min(_V[k]["d_raw"]) > 0 for _V in (_V0, _V1) for k in _outer2))
 _v1_bn_clean = not any(q["bn_positive"] for q in F("fjr_adapt"))
@@ -320,16 +319,16 @@ _N = {k: {f"{q['v']:.3f}": q for q in F(k + "_pairs")} for k in ("fjgn", "fjln",
 _outer3 = [k for k in _V1 if float(k) > 0.05]
 _npos = {k: sum(_N[k][v]["positive"] for v in _outer3) for k in _N}
 _norm_max = max(abs(q["d_raw_mean"]) for k in _N for q in _N[k].values())
-check("inference padding lowers the gap", "lowers it to $@$\nto $@$", *F("pad_c10_commuting_outer"))
+check("inference padding lowers the gap", "lowers the gap to $@$ to $@$", *F("pad_c10_commuting_outer"))
 check("normalization: outer gaps", "the gaps at the outer pairs\nstay below $@$,",
       max(abs(_N[k][v]["d_raw_mean"]) for k in ("fjgn", "fjln") for v in _outer3), rnd="up")
-word("normalization: none and one", "pass the rule at none and at one of the\nthree", (_npos["fjgn"], _npos["fjln"]) == (0, 1))
+word("normalization: none and one", "GroupNorm passes the rule\nat none of the three outer pairs and layer normalization at one", (_npos["fjgn"], _npos["fjln"]) == (0, 1))
 _ratio = [_V0[k]["d_raw_mean"] / _N[n_][k]["d_raw_mean"] for n_ in ("fjgn", "fjln") for k in _outer2]
 check("normalization: how much smaller", "$@$ to $@$ times smaller than with batch normalization at the\nmost extrapolated pairs but not zero", min(_ratio), max(_ratio))
 word("normalization: not zero", "but not zero", all(_N[n_][k]["d_raw_mean"] > 0.01 for n_ in ("fjgn", "fjln") for k in _outer2))
 word("normalization: three seeds each", "(three seeds each, otherwise as the joint model)",
      all(F(n_ + "_pairs")[0]["seeds"] == [1, 2, 3] for n_ in ("fjgn", "fjln", "fjstd")), cls="design")
-check("normalization: clean errors", "at a cost in clean error ($@$ and $@$)", F("fjgn_clean_err")[0], F("fjln_clean_err")[0])
+check("normalization: clean errors", "cost\nclean error ($@$ with GroupNorm and $@$ with layer normalization)", F("fjgn_clean_err")[0], F("fjln_clean_err")[0])
 check("standardized: clean error", "has no gap, at no cost\nin clean error ($@$, against $@$)", F("fjstd_clean_err")[0], F("fjf_clean_err")[0])
 word("standardized: no gap, no cost", "has no gap, at no cost",
      _npos["fjstd"] == 0 and all(abs(q["d_raw_mean"]) < 0.01 for q in _N["fjstd"].values())
@@ -341,13 +340,13 @@ word("checks: BN-adapt closes (condition)", "BN-adapt closes the gap (to within"
 check("V1: keeps the gap", "keeps\nit, $@$ and $@$ at the most extrapolated pairs (seed means, positive in each\nseed)", *[_V1[k]["d_raw_mean"] for k in _outer2])
 word("per-sample normalization removes most (contribution, abstract, discussion)", "per-sample normalization removes most of it",
      _norm_max < 0.5 * min(_V0[k]["d_raw_mean"] for k in _outer2))
-check("abstract: per-sample normalization", "With per-sample normalization the excess is below $@$",
-      max(abs(_N[n_][k]["d_raw_mean"]) for n_ in ("fjgn", "fjln") for k in _outer2), rnd="up")
+word("abstract: per-sample normalization largely removes the gap", "per-sample normalization largely removes the gap",
+     max(abs(_N[n_][k]["d_raw_mean"]) for n_ in ("fjgn", "fjln") for k in _outer2) < 0.5 * min(_V0[k]["d_raw_mean"] for k in _outer2))
 word("discussion: per-sample avoids most", "per-sample\nnormalization avoids most of it", _norm_max < 0.5 * min(_V0[k]["d_raw_mean"] for k in _outer2))
 word("most depends on BN, does not need zero padding", "Most of the gap depends on batch normalization, and it does not need the first\nconvolution's zero padding",
      sum(_V1[k]["positive"] for k in _outer3) >= 2 and _npos["fjgn"] <= 1 and _npos["fjln"] <= 1
      and mean([_V1[k]["d_raw_mean"] for k in _outer2]) > 0.9 * mean([_V0[k]["d_raw_mean"] for k in _outer2]))
-word("narrowed after the mixed outcome", "it was mixed, and we narrowed the\nmain claim to models with batch normalization after seeing it", (_npos["fjgn"], _npos["fjln"]) == (0, 1))
+word("narrowed after the mixed outcome", "The outcome was mixed, and we\nnarrowed the main claim to models with batch normalization after seeing it", (_npos["fjgn"], _npos["fjln"]) == (0, 1))
 word("the rule's branches as in the analysis script", "specific to batch normalization if neither variant passed at any outer pair, not\nspecific if both passed at two, and mixed otherwise",
      "n2 >= 2 and n3 >= 2" in src("oct10/analyze_variants.py") and "n2 == 0 and n3 == 0" in src("oct10/analyze_variants.py"), cls="design")
 check("V1 within run-to-run of V0", "within $@$ of the zero-padded model's", max(abs(_V1[k]["d_raw_mean"] - _V0[k]["d_raw_mean"]) for k in _outer2), rnd="up")
@@ -405,7 +404,7 @@ _bse = [_B[f"{m_}|{c_}|bnadapt"]["SE"] for m_ in _BM for c_ in ("clean", "contra
 check("bench caption: SE range", "gains lie between @ and @", min(_bse), max(_bse), rnd=["down", "up"])
 word("bench caption: every corrupted gain beyond 3 SE", "every BN-adapt gain under a corruption exceeds three times its standard error",
      all(abs(_B[f"{m_}|{c_}|bnadapt"]["G"]) > 3 * _B[f"{m_}|{c_}|bnadapt"]["SE"] for m_ in _BM for c_ in ("contrast", "brightness", "fog", "gaussian_noise")))
-word("bench: three models", "for three standard pretrained models", len(_BM) == 3, cls="design")
+word("bench: three models", "For three standard pretrained models", len(_BM) == 3, cls="design")
 check("bench: discussion cells", "lowers BN-adapt's error in\n$@$ of the $@$ model--corruption cells for contrast, brightness and fog and raises it\nin the other $@$, and on clean images",
       F("bench_cells_helped"), len(_bh), F("bench_cells_hurt"))
 word("bench: clean images raised", "and on clean images (Appendix", F("bench_clean_cost")[0] > 0)
@@ -434,7 +433,7 @@ check("partial order noise", "additive noise of variance\n$@$, and no severity",
 grid_v_max = max([2 * t for t in (0.2,)] + [2 * F("fog_t4_tnoise")] + [r["v_eq"] for r in abl.values()])
 word("partial order: nothing on our grids above it", "no severity on our noise or fog grids has an equivalent variance\nlarge enough to be ordered above it",
      grid_v_max < he["0.25"]["max"])
-design("CIFAR fog params", "With the CIFAR\nsettings ($a = @$, $\\sigma_{\\text{fog}} = @$)",
+design("CIFAR fog params", "under the CIFAR settings ($a = @$, $\\sigma_{\\text{fog}} = @$)",
        1.0 if "decay = np.exp(-t)" in src(BN_SCRIPT) else -1, const(BN_SCRIPT, r"^FOG_SIGMA = ([\d.]+)"))
 check("fog t=1 -> t_noise", "noise at $t_{\\text{noise}} = @$, but fog at $t = 2$ corresponds to $@$", F("fog_t1_tnoise"), F("fog_t2_tnoise"))
 check("fog t=4 -> t_noise", "fog at $t = 4$ to $@$, while our noise grid stops at $@$", F("fog_t4_tnoise"), F("noise_grid_max"))
@@ -476,7 +475,7 @@ design("TENT batch", "on test batches of\n@ images", const(BN_SCRIPT, r"^TENT_BA
 tent_sgd = re.search(r"torch\.optim\.SGD\(params, lr=TENT_LR, momentum=([\d.]+)\)", src(BN_SCRIPT))
 design("TENT SGD", "Our main runs used SGD with momentum $@$ at learning rate $10^{-3}$",
        float(tent_sgd.group(1)) if tent_sgd else -1)
-check_pow("TENT lr", "at learning rate $@$;", const(BN_SCRIPT, r"^TENT_LR = ([\de.-]+)"), cls="design")
+check_pow("TENT lr", "at learning rate $@$.\nSection", const(BN_SCRIPT, r"^TENT_LR = ([\de.-]+)"), cls="design")
 design("EATA E0", "$H_0 = @\\ln C$", const(BN_SCRIPT, r"^EATA_E0 = ([\d.]+) \* math\.log"))
 design("EATA Fisher n", "over @ clean labelled\nimages", const(BN_SCRIPT, r"^EATA_FISHER_N = (\d+)"))
 design("EATA alpha", "We use $\\alpha = @$", const(BN_SCRIPT, r"^EATA_FISHER_ALPHA = ([\d.]+)"))
@@ -522,9 +521,9 @@ word("fog check haze midway", "the haze point midway between the class means",
      "A = np.array([1.5, 0.0])" in src("kill_test_fog.py") and "np.array([3.0, 0.0])" in src("kill_test_fog.py"), cls="design")
 
 # =========================================================================== CIFAR-10: blur pair
-check("blur pair frozen", "at $@$ error under\ndeterministic blur and $@$ under heat-equation blur",
+check("blur pair frozen", "same place, at $@$ error under\ndeterministic blur and $@$ under heat-equation blur",
       F("gauss_blur_t2_frozen"), F("blur_heat_t2_frozen"))
-check("blur pair BN", "Yet BN-adapt removes\n$@$ of that error in the first case and $@$ in the second",
+check("blur pair BN", "Yet BN-adapt removes\n$@$ of that error under deterministic blur and only $@$ under heat-equation\nblur",
       F("gauss_blur_t2_bn_removes"), F("blur_heat_t2_bn_removes"))
 bps = F("blur_ratio_bn_per_seed")
 check("blur pair ratio", "a factor of\n$@$ in the three-seed means and between $@$ and $@$ for individual seeds",
@@ -532,19 +531,20 @@ check("blur pair ratio", "a factor of\n$@$ in the three-seed means and between $
 _gd = F("gauss_blur_t2_frozen") - F("gauss_blur_t2_oracle")
 _gh = F("blur_heat_t2_frozen") - F("blur_heat_t2_oracle")
 _fd, _fh = F("gauss_blur_t2_bn_removes") / _gd, F("blur_heat_t2_bn_removes") / _gh
-check("blur pair decomposition", "the avoidable gap is $@$ under deterministic blur and\n$@$ under heat-equation blur, a factor of $@$, and BN-adapt removes $@\\%$\nof the first and $@\\%$ of the second, a factor of $@$",
+check("blur pair decomposition", "The avoidable gap is $@$ under deterministic blur and\n$@$ under heat-equation blur, a factor of $@$, and BN-adapt removes $@\\%$\nof the deterministic-blur gap but only $@\\%$ of the heat-equation gap, a factor of\n$@$",
       _gd, _gh, _gd / _gh, 100 * _fd, 100 * _fh, _fd / _fh)
-check("abstract: blur pair", "statistics removes $@$ of the first and\n$@$ of the second, a factor of $@$ of which $@$ lies in the avoidable error\nmeasured against a classifier retrained at that severity (the oracle)",
-      F("gauss_blur_t2_bn_removes"), F("blur_heat_t2_bn_removes"), F("blur_ratio_bn"), _gd / _gh)
-design("abstract: blur models 15 epochs", "ResNet-18, trained for @ epochs, at similar error",
+check("abstract: blur ratio", "removes $@$ times as much error under deterministic\nblur, and only part of this difference", F("blur_ratio_bn"))
+word("abstract: only part of the factor lies in the avoidable error", "only part of this difference lies in the avoidable error measured against",
+     1 < _gd / _gh < F("blur_ratio_bn"))
+design("abstract: blur models 15 epochs", "ResNet-18 trained for @ epochs at similar error",
        const(BN_SCRIPT, r"^EPOCHS = (\d+)") if const(BN_SCRIPT, r"^EPOCHS = (\d+)") == const("kaggle_cifar10_c_bnadapt_blurheat/cifar10_c_bnadapt_blurheat_kaggle.py", r"^EPOCHS = (\d+)") else -1)
 check("contribution: blur factor split", "a factor of $@$ of it in the avoidable error measured against the\noracle", _gd / _gh)
-check("discussion: blur factor split", "nothing; $@$ of that factor lies in the avoidable error measured against the\noracle", _gd / _gh)
+check("discussion: blur factor split", "A factor of $@$ of that difference lies in the avoidable error\nmeasured against the oracle", _gd / _gh)
 check("conclusion: blur factor split", "of which a factor of $@$ lies in the\navoidable error measured against the oracle and $@$ in the share of it that\nre-estimation removes",
       _gd / _gh, _fd / _fh)
-check("blur pair left after BN", "after BN-adapt, $@$ and $@$ remain above the oracle",
+check("blur pair left after BN", "after BN-adapt, $@$ remains above the oracle under\ndeterministic blur and $@$ under heat-equation blur",
       _gd - F("gauss_blur_t2_bn_removes"), _gh - F("blur_heat_t2_bn_removes"))
-check("blur pair TENT", "TENT\ngives $@$ against $@$", F("gauss_blur_t2_tent_removes"), F("blur_heat_t2_tent_removes"))
+check("blur pair TENT", "TENT removes $@$ against $@$", F("gauss_blur_t2_tent_removes"), F("blur_heat_t2_tent_removes"))
 
 # =========================================================================== recovered fractions
 _fx = F("fixed")
@@ -567,8 +567,8 @@ word("heat gap the same at every t>=0.5", "under heat-equation blur at every\n$t
 check("Adam BN-TENT fog/control", "by $@$ under fog at $t = 1$, and by $@$ and $@$ in the\ncontrol at $t = 1$ and $t = 2$",
       _bt["fog_beer_lambert@1.0"], _bt["gauss_blur@1.0"], _bt["gauss_blur@2.0"])
 _named = {"blur_heat@0.5", "blur_heat@1.0", "blur_heat@2.0", "fog_beer_lambert@1.0", "gauss_blur@1.0", "gauss_blur@2.0"}
-check("Adam BN-TENT elsewhere", "elsewhere they differ by less than $@$", 0.007)
-word("elsewhere below 0.007", "elsewhere they differ by less than $0.007$", max(abs(v) for k, v in _bt.items() if k not in _named) < 0.007)
+check("Adam BN-TENT elsewhere", "Elsewhere they differ by less than $@$", 0.007)
+word("elsewhere below 0.007", "Elsewhere they differ by less than $0.007$", max(abs(v) for k, v in _bt.items() if k not in _named) < 0.007)
 _dha = F("dann_heat_vs_tent_adam")
 
 # =========================================================================== tables (main text)
@@ -610,7 +610,7 @@ check("fog-noise mean/max", "They differ by $@$ on average, and the largest\ndif
       F("fog_noise_mean_absdiff"), F("fog_noise_max_absdiff"))
 word("fog-noise max at t=0.1", "difference is $0.0083$, at fog $t = 0.1$", float(argmax_t) == 0.1)
 check("fog-noise t=0", "two oracles already differ by $@$ through training variance alone", F("fog_noise_t0_diff"))
-word("noise curve concave", "Its curve is concave on the\ngrid", F("noise_oracle_concave"))
+word("noise curve concave", "its curve is concave on the\ngrid", F("noise_oracle_concave"))
 diffuse_dev = max(abs(abl[k]["oracle"] - abl[k]["noise_oracle"]) for k in abl if k.startswith("fog_diffuse") and "noise_oracle" in abl[k])
 drift_devs = [abl[k]["oracle"] - abl[k]["noise_oracle"] for k in abl
               if k.startswith("fog_drift") and "noise_oracle" in abl[k] and not k.endswith("@0.0")]
@@ -619,7 +619,7 @@ check("ablation vs noise", "agreement within $@$ for the diffusion-dominated reg
 nt_grid = sorted(t for f, t in R_ if f == "gauss_noise")
 drift_pts = [k for k in abl if k.startswith("fog_drift") and not k.endswith("@0.0") and "noise_oracle" in abl[k]]
 diff_pts = [k for k in abl if k.startswith("fog_diffuse") and not k.endswith("@0.0") and "noise_oracle" in abl[k]]
-word("three of four drift points low", "of the four drift points with a noise equivalent on the grid, three\nlie between the first two noise grid points",
+word("three of four drift points low", "Of the four drift points with a noise equivalent on the grid, three\nlie between the first two noise grid points",
      len(drift_pts) == 4 and sum(abl[k]["t_noise"] < nt_grid[1] for k in drift_pts) == 3)
 word("interpolation least reliable there", "where the linear interpolation is\nleast reliable",
      max(range(len(F("noise_oracle_slopes")) - 1), key=lambda i: F("noise_oracle_slopes")[i] - F("noise_oracle_slopes")[i + 1]) == 0)
@@ -656,9 +656,9 @@ for t in sorted(WF):
             [f"{r['err_wiener_best']:.4f}", f"{W[str(t)]['oracle']:.4f}"]
     rows.append(f"{t:.2f} & " + " & ".join(cells) + r" \\")
 # like-for-like repeat
-check_pow("repeat grid low", "the regularizer chosen from\n$@$ to", min(LFL_GRID), cls="design")
+check_pow("repeat grid low", "the regularizer is chosen from\n$@$ to", min(LFL_GRID), cls="design")
 check_pow("repeat grid high", "to $@$ on a selection split disjoint", max(LFL_GRID), cls="design")
-word("three seeds", "We then repeated the test", F("wiener_lfl_seeds") == [1, 2, 3])
+word("three seeds", "Witness and oracle use\nthe same periodic operator and three seeds", F("wiener_lfl_seeds") == [1, 2, 3])
 word("witness ahead everywhere, every seed", "The witness beats the\noracle at every severity",
      all(min(WL[t]["gap"]) > 0 for t in WL if float(t) > 0))
 check("repeat headline", "every seed\n(Table~\\ref{tab:wiener}): $@$ against $@$ at $t = 1$ and $@$ against\n$@$ at $t = 2$",
@@ -778,7 +778,7 @@ check("DANN worse", "DANN's error exceeds\nTENT's at six of twelve held-out seve
 word("six of twelve, rest within, all fog among them", "at six of twelve held-out severities",
      F("dann_resolved_all") == 6 and F("dann_resolved_all_worse") == 6
      and all(f"fog_beer_lambert@{t}" in F("dann_unresolved_all_keys") for t in (0.5, 1.0, 2.0, 4.0)))
-word("heat within yardstick", "the two are within the yardstick at every held-out severity,\nwhether TENT uses SGD or Adam",
+word("heat within yardstick", "DANN and TENT are within the yardstick at every held-out severity,\nwhether TENT uses SGD or Adam",
      F("dann_heat_within_yardstick"))
 check("heat DANN vs SGD and Adam TENT", "by at\nmost $@$ in error and behind TENT with Adam by $@$ to $@$",
       F("dann_heat_ahead_max"), min(_dha.values()), max(_dha.values()), rnd=["up", None, None])
@@ -1043,21 +1043,18 @@ word("no slack certified", "so they certify no slack in the fog\noracle",
 cs = sorted(F("cert_control")["2.0"])
 pos = F("cert_dissipative_positive")
 _B = F("blur_factorial")
-check("factorial t=2", "At $t = 2$ BN-adapt removes $@$ of the frozen error with neither the noise nor\nthe floor, $@$ with the floor alone and $@$ with the noise alone, against\n$@$ for the reflect-padded blur and $@$ for heat-equation blur",
-      _B["blurfft_s0_a0@2.0"]["bn_removes"][0], _B["blurfft_s0_a01@2.0"]["bn_removes"][0], _B["blurfft_s15_a0@2.0"]["bn_removes"][0],
-      F("gauss_blur_t2_bn_removes"), F("blur_heat_t2_bn_removes"))
-word("factorial: three seeds per cell", "A factorial run on one\nperiodic Fourier operator, three seeds",
+check("factorial t=2", "At $t = 2$ BN-adapt removes $@$ of the frozen error with neither the noise nor\nthe floor, $@$ with the floor alone and $@$ with the noise alone.",
+      _B["blurfft_s0_a0@2.0"]["bn_removes"][0], _B["blurfft_s0_a01@2.0"]["bn_removes"][0], _B["blurfft_s15_a0@2.0"]["bn_removes"][0])
+word("factorial: three seeds per cell", "factorial run on one periodic Fourier operator, with three seeds per cell",
      all(_B[f"{f}@{t}"]["n"] == 3 for f in ("blurfft_s0_a0", "blurfft_s0_a01", "blurfft_s15_a0") for t in (0.25, 0.5, 1.0, 2.0)))
 _main_ctl = {t: sum(v["err_frozen"] - v["err_bnadapt"] for v in R_[("gauss_blur", t)].values()) / 3 for t in (0.25, 0.5, 1.0, 2.0)}
-word("boundary and kernel nothing measurable at t>=1", "the\nboundary and the kernel nothing measurable at $t \\ge 1$",
+word("boundary and kernel nothing measurable at t>=1", "the boundary and the kernel\ncontribute nothing measurable at $t \\ge 1$",
      all(abs(_main_ctl[t] - _B[f"blurfft_s0_a0@{t}"]["bn_removes"][0]) < _B[f"blurfft_s0_a0@{t}"]["bn_removes"][1] for t in (1.0, 2.0)))
 word("floor contributes little", "the floor contributes little",
      all(0 <= _B[f"blurfft_s0_a0@{t}"]["bn_removes"][0] - _B[f"blurfft_s0_a01@{t}"]["bn_removes"][0] < 0.05 for t in (1.0, 2.0)))
 check("reflect vs periodic small t", "than the periodic one\n($@$ against $@$ at $t = 0.5$)", _main_ctl[0.5], _B["blurfft_s0_a0@0.5"]["bn_removes"][0])
 word("reflect leaves more at t<=0.5", "At $t \\le 0.5$ the\nreflect-padded blur leaves more", all(_main_ctl[t] > _B[f"blurfft_s0_a0@{t}"]["bn_removes"][0] for t in (0.25, 0.5)))
 
-word("abstract: factorial traces gap to noise", "an exploratory\nfactorial run traces the difference to the noise term",
-     F("blur_factorial")["blurfft_s15_a0@2.0"]["bn_removes"][0] < 0.1 < F("blur_factorial")["blurfft_s0_a01@2.0"]["bn_removes"][0])
 noted("joint model added after the first results", "The joint model was added after the results\nof the first two were known",
       "chronology of the runs, recorded in the run plan; not reproducible from the result files")
 # =========================================================================== matched fog pairs (3 October runs)
@@ -1069,7 +1066,7 @@ check("separate models gap", "show a gap at all four pairs, $@$ to\n$@$ (seed me
 word("separate: all four, every seed", "show a gap at all four pairs", F("fc_matched_npos") == 4
      and all(min(r["matched"]["d_raw"]) > 0 for r in _fcp))
 check("separate at training severities", "training\nseverities ($@$ against $@$)", _fcp[0]["matched"]["err_drift"], _fcp[0]["matched"]["err_diffuse"])
-check("oracles agree", "oracles agree to within $@$ throughout,\nsingle seeds to within $@$", max(abs(r["oracle_diff"]) for r in _fcp), F("fc_oracle_diff_seed_max"), rnd="up")
+check("oracles agree", "oracles agree to within $@$ in their\nseed means throughout, single seeds to within $@$", max(abs(r["oracle_diff"]) for r in _fcp), F("fc_oracle_diff_seed_max"), rnd="up")
 _c1 = F("fc_clean_drift_t1")
 check("clean model at chance (caption)", "is at chance, $@$ to $@$, at every point", F("fc_clean_err_min"), F("fc_clean_err_max"))
 _rv = F("fc_4x")
@@ -1083,8 +1080,8 @@ design("matched drift grid", "(severities $@$, $@$ and $@$)", 0, *_drift_match)
 word("diffusion pair severities", r"$t \in \{1, 2, 4, 8\}$",
      sorted(r["t_diffuse"] for r in _fcp) == [1.0, 2.0, 4.0, 8.0], cls="design")
 check("caption 4x", "The reversal at the $@\\times$ horizon is an extrapolation effect", abl["fog_drift@2.0"]["horizon"])
-check("contribution blur ratio", "statistic re-estimation removes $@$ times\nas much error from one as from the other", F("blur_ratio_bn"))
-check("discussion blur ratio", "re-estimation removes $@$ times as much error from one corruption as from the other", F("blur_ratio_bn"))
+check("contribution blur ratio", "statistic re-estimation removes $@$ times as much\nerror under deterministic blur as under heat-equation blur", F("blur_ratio_bn"))
+check("discussion blur ratio", "re-estimation removes $@$ times as much error under deterministic blur as under\nheat-equation blur, and by Proposition~\\ref{prop:equivalence} deterministic blur\ndestroys nothing", F("blur_ratio_bn"))
 
 # =========================================================================== joint model at the full budget
 _ff = sorted(F("fjf_pairs"), key=lambda r: r["v"])
@@ -1093,12 +1090,12 @@ _head = [r["d_raw_mean"] for r in _ff if r["v"] > 0.15]
 
 design("full budget", "the standard CIFAR budget, @ epochs with per-sample crop and flip, as well as\nat @ epochs",
        const("kaggle_oct3_runner/runner.py", r"^FULL_EPOCHS = (\d+)"), const("kaggle_oct3_runner/runner.py", r"^EPOCHS = (\d+)"))
-check("full budget in range", "equally well within its training range ($@$ and $@$ at $v = @$, where\nthe 15-epoch oracles reach $@$ and $@$",
-      _ff[0]["err_drift"], _ff[0]["err_diffuse"], _ff[0]["v"], _fcp[0]["oracle_drift"], _fcp[0]["oracle_diffuse"])
-word("full budget: in range not positive", "it classifies the two members\nequally well within its training range", not _ff[0]["positive"] and abs(_ff[0]["d_raw_mean"]) < 0.005)
+check("full budget in range", "At $v = @$ its errors are $@$ and\n$@$, where the 15-epoch oracles reach $@$ and $@$ and are therefore\nloose",
+      _ff[0]["v"], _ff[0]["err_drift"], _ff[0]["err_diffuse"], _fcp[0]["oracle_drift"], _fcp[0]["oracle_diffuse"])
+word("full budget: in range not positive", "the joint model classifies the two members\nequally well within its training range", not _ff[0]["positive"] and abs(_ff[0]["d_raw_mean"]) < 0.005)
 check("full budget gaps", "by\n$@$, $@$ and $@$ at $v = @$, $@$ and $@$ (seed means, positive\nin each of the three seeds)",
       _ff[1]["d_raw_mean"], _ff[2]["d_raw_mean"], _ff[3]["d_raw_mean"], _ff[1]["v"], _ff[2]["v"], _ff[3]["v"])
-word("full budget: every seed", "(seed means, positive\nin each of the three seeds); we call the last two", F("fjf_pairs_npos") == 3 and all(min(r["d_raw"]) > 0 for r in _ff[1:]))
+word("full budget: every seed", "(seed means, positive\nin each of the three seeds). We call the last two", F("fjf_pairs_npos") == 3 and all(min(r["d_raw"]) > 0 for r in _ff[1:]))
 check("15 epochs in range", "At 15\nepochs the model is worse everywhere ($@$ and $@$ within its range)", _fj[0]["err_drift"], _fj[0]["err_diffuse"])
 word("15 epochs worse everywhere", "the model is worse everywhere",
      all(a["err_drift"] > b["err_drift"] and a["err_diffuse"] > b["err_diffuse"] for a, b in zip(_fj, _ff)))
@@ -1106,7 +1103,7 @@ check("15 epochs outer gaps", "the\ngaps at the two most extrapolated pairs are 
 word("15 epochs: sign changes at 0.089", "at $v = 0.089$ the\ndifference changes sign across seeds", min(_fj[1]["d_raw"]) < 0 < max(_fj[1]["d_raw"]))
 word("shrinks and persists", "Longer training shrinks the effect but\nkeeps it",
      all(b["d_raw_mean"] < a["d_raw_mean"] and b["positive"] for a, b in zip(_fj[2:], _ff[2:])))
-check("c100 full gaps", "At 200 epochs (Table~\\ref{tab:budget}) the gaps beyond the\ntraining range are $@$, $@$ and $@$", *[r["d_raw_mean"] for r in _ff100[1:]])
+check("c100 full gaps", "At 200 epochs the gaps beyond the\ntraining range are $@$, $@$ and $@$", *[r["d_raw_mean"] for r in _ff100[1:]])
 word("c100 full every seed", "again in every seed", F("fjf100_pairs_npos") == 3 and all(min(r["d_raw"]) > 0 for r in _ff100[1:]))
 check("c100 full in range", "the gap\nwithin it ($@$) no longer exceeds the sampling floor in every seed", _ff100[0]["d_raw_mean"])
 word("c100 full in range not positive", "no longer exceeds the sampling floor in every seed", not _ff100[0]["positive"])
@@ -1121,9 +1118,8 @@ _wl2 = F("wiener_lfl")["2.0"]["cert_slack"]
 check("limitations: slack ranges", "certified from below, by up\nto $@$ in the dissipative families and $@$ in the control", F("cert_all_max"),
       max(WL["2.0"]["cert_slack_joint"]), rnd="down")
 _f100 = {f"{q['v']:.3f}": q for q in F("fjf100_pairs")}
-check("abstract: CIFAR-100", "On CIFAR-100 re-estimation removes $@$ times as much from the\nfirst blur as from the second, and the fog gap is $@$ to $@$",
-      F("c100_blur_ratio_bn"), min(_f100[k]["d_raw_mean"] for k in _outer2), max(_f100[k]["d_raw_mean"] for k in _outer2))
-word("abstract: CIFAR-100 fog pairs pass", "and the fog gap is", all(_f100[k]["positive"] for k in _outer2))
+word("abstract: both comparisons replicate on CIFAR-100", "Both comparisons replicate on CIFAR-100",
+     F("c100_blur_ratio_bn") > 2 and all(_f100[k]["positive"] and min(_f100[k]["d_raw"]) > 0 for k in _outer2))
 check("sqrt(d) for CIFAR", "about $@$ for $@\\times@$ colour images", math.sqrt(3 * 32 * 32), 32, 32)
 check("bootstrap level", "has asymptotic, not exact, probability $@\\%$", 100 * (1 - const("certified_extrapolation.py", r"^ALPHA = ([\d.]+)")))
 check("cifar coverage", "contains the true value at every held-out\nseverity, $@$ in all", F("ce_cifar_points"))
@@ -1135,13 +1131,13 @@ cs = sorted(F("cert_control")["2.0"])
 pos = F("cert_dissipative_positive")
 check("noise oracles alone", "$@$ of the $@$ fog oracles (by seed) have certified slack, close to the\n$@$ that one-sided $@\\%$ margins produce by chance",
       len(pos), F("cert_dissipative_n"), F("cert_dissipative_expected_by_chance"), 5)
-check("all witnesses", "margins corrected for all $@$ of them, slack is\ncertified in $@$ of the $@$ fog and noise oracles, against about $@$ expected by\nchance, by up to $@$",
-      F("cert_all_K"), F("cert_all_pos"), F("cert_all_n"), F("cert_all_expected"), F("cert_all_max"), rnd=[None, None, None, None, "down"])
+check("all witnesses", "margins corrected for all $@$ of these\nwitnesses, slack is certified in $@$ of the $@$ fog and noise oracles, by up to\n$@$, against about $@$ expected by chance",
+      F("cert_all_K"), F("cert_all_pos"), F("cert_all_n"), F("cert_all_max"), F("cert_all_expected"), rnd=[None, None, None, "down", None])
 check("other certificates", "The other\n$@$ come from 15-epoch oracles at the same or a larger $v$: $@$ from the oracle\nof another seed or run at the same point", F("cert_all_by_15epoch"), F("cert_15epoch_same_v"))
 check("other certificates at larger v", "and $@$ from a point of larger $v$", F("cert_15epoch_larger_v"))
 word("other certificates are oracles", "come from 15-epoch oracles",
      all(w.count("/") == 1 and not w.startswith("joint") for w in F("cert_all_by_witness") if not w.startswith("joint200")))
-word("one witness trained for 200 epochs", "among them one trained for 200 epochs, certify", F("cert_all_by_joint200") > 0)
+word("one witness trained for 200 epochs", "among them one trained for 200 epochs, to certify", F("cert_all_by_joint200") > 0)
 word("the witness is the standardized-input model", "The 200-epoch joint model trained on standardized images is the witness",
      F("cert_joint200_witness_models") == ["joint200_std"] == F("cert_fc_042_witness_models"))
 check("joint200 as witness", "is the witness in\n$@$ of these, and at its training point $v = @$ it certifies $@$ to\n$@$",
@@ -1159,9 +1155,9 @@ word("drift below all, raw noise in range", "lie below all of them, with raw noi
 check("unseen contrast interval", "lie in the interval from\n$@$ to $@$ that the model never saw", *F("joint_train_contrast_gap"))
 word("diffusion members in the unseen interval", "that the model never saw",
      all(F("joint_train_contrast_gap")[0] < _mc[k]["diffuse"] < F("joint_train_contrast_gap")[1] for k in _out))
-check("diffusion members: contrast and raw noise", "the diffusion members, with contrast $@$ to $@$, lie in the interval from\n$0.24$ to $0.95$ that the model never saw, with raw noise variance $@$ to $@$\ntimes the largest trained",
+check("diffusion members: contrast and raw noise", "The diffusion members, with contrast $@$ to $@$, lie in the interval from\n$0.24$ to $0.95$ that the model never saw, with raw noise variance $@$ to $@$\ntimes the largest trained",
       _mc["0.089"]["diffuse"], _mc["0.490"]["diffuse"], _rv["0.089"]["diffuse"], _rv["0.490"]["diffuse"])
-word("errs more on the contrast-extrapolating member", "the model errs more on the member whose contrast lies below all\nits training contrasts",
+word("errs more on the contrast-extrapolating member", "The model errs more on the drift members, whose contrast\nlies below all its training contrasts",
      all(r["d_raw_mean"] > 0 for r in _ff[1:]))
 check("no gap at lowest contrast", "the gap is absent at $v = @$, the lowest contrast it saw", _ff[0]["v"])
 word("lowest contrast is the training one", "the lowest contrast it saw",
@@ -1175,7 +1171,7 @@ word("TENT in that run used Adam", "with TENT (Adam; Table~\\ref{tab:budget})",
 _ad0 = sorted(F("fjf_adapt"), key=lambda q: q["v"])[0]
 word("adaptation creates a gap inside the range", "adaptation even creates a gap\nwhere the frozen model has none",
      abs(_V0["0.042"]["d_raw_mean"]) < 0.005 and not _V0["0.042"]["positive"] and _ad0["bn_gap"] > 0.05)
-check("inside the range: frozen and BN-adapt", "inside the training range the gap is $@$ frozen\nand $@$ after BN-adapt", _V0["0.042"]["d_raw_mean"], _ad0["bn_gap"])
+check("inside the range: frozen and BN-adapt", "Inside the training range the gap is $@$ frozen\nand $@$ after BN-adapt", _V0["0.042"]["d_raw_mean"], _ad0["bn_gap"])
 check("adaptation gaps", "over the four pairs it is $@$ to $@$ with\nBN-adapt and $@$ to $@$ with TENT",
       min(r["bn_gap"] for r in _ad), max(r["bn_gap"] for r in _ad), min(r["tent_gap"] for r in _ad), max(r["tent_gap"] for r in _ad))
 _pp = sorted(F("fjf_pairs"), key=lambda r: r["v"])
@@ -1184,7 +1180,7 @@ _lowered = [ad["bn_drift"] < ad["frozen_drift"] and ad["bn_drift"] - ad["bn_gap"
 # the decision-rule table
 _fj15 = sorted(F("fj_pairs"), key=lambda r: r["v"]); _fj100 = sorted(F("fj100_pairs"), key=lambda r: r["v"])
 check("limitations: c100 15-epoch in-range gap", "on\nCIFAR-100 at 15 epochs it is $@$ inside it", _fj100[0]["d_raw_mean"])
-word("limitations: in-range gap pattern", "appears only beyond its training range; on",
+word("limitations: in-range gap pattern", "appears only beyond its training range, whereas on",
      not _fj15[0]["positive"] and not sorted(F("fjf_pairs"), key=lambda r: r["v"])[0]["positive"]
      and not sorted(F("fjf100_pairs"), key=lambda r: r["v"])[0]["positive"] and _fj100[0]["positive"]
      and all(r["positive"] for r in sorted(F("fjf_pairs"), key=lambda r: r["v"])[1:] if r["v"] > 0.1))
@@ -1202,13 +1198,12 @@ _TIN = "kaggle_tinyimagenet/tin_kaggle.py"
 design("TIN subset", "Tiny-ImageNet ($@$ training and $@$ test images at $@\\times@$)",
        const(_TIN, r"^N_TRAIN_IMG = (\d+)"), const(_TIN, r"^N_TEST_IMG = (\d+)"), const(_TIN, r"^IMG_SIZE = (\d+)"), const(_TIN, r"^IMG_SIZE = (\d+)"))
 word("TIN 100 classes", "a 100-class subset of\nTiny-ImageNet", const(_TIN, r"^N_CLASSES = (\d+)") == 100, cls="design")
-word("TIN float64 guard", "refuse\nimplausible ones",
+word("TIN float64 guard", "refusing implausible ones",
      "assert np.all((NORM_MEAN > 0.3)" in src(_TIN) and 'dtype=np.float64' in src(_TIN), cls="design")
 _j100 = sorted(F("fj100_pairs"), key=lambda r: r["v"])
 word("c100 joint all four, every seed", "errs more on the drift\nmember at all four pairs, in each of the three seeds",
      len(_j100) == 4 and all(len(r["d_raw"]) == 3 and min(r["d_raw"]) > 0 for r in _j100) and F("fj100_pairs_npos") == 4)
-check("c100 joint gaps", "by\n$@$ within its training range and by $@$, $@$ and $@$ beyond it",
-      *[r["d_raw_mean"] for r in _j100])
+check("c100 joint gaps", "by\n$@$ even within its training range", _j100[0]["d_raw_mean"])
 _c100 = sorted(F("c100_fc_pairs"), key=lambda r: r["v"])
 check("c100 separate gaps", "Separate models matched in $v$ show a gap of\n$@$ to $@$ at all four pairs and in every seed",
       min(r["d_raw_mean"] for r in _c100), max(r["d_raw_mean"] for r in _c100))
@@ -1218,7 +1213,7 @@ _tin = sorted(F("tin_fc_pairs"), key=lambda r: r["v"])
 check("tin separate gaps", "err more on the drift member by $@$ and $@$ at $v = @$ and $@$",
       _tin[0]["d_raw_mean"], _tin[1]["d_raw_mean"], _tin[0]["v"], _tin[1]["v"])
 check("tin oracles", "while the oracles agree to within $@$", max(abs(_tin[0]["oracle_diff"]), abs(_tin[1]["oracle_diff"])), rnd="up")
-check("tin last pair", "at $v = @$ both models are near\nchance ($@$ and $@$)", _tin[2]["v"], _tin[2]["err_drift"], _tin[2]["err_diffuse"])
+check("tin last pair", "At $v = @$ both separate models are near\nchance ($@$ and $@$)", _tin[2]["v"], _tin[2]["err_drift"], _tin[2]["err_diffuse"])
 word("tin one seed", "On Tiny-ImageNet, with one seed", all(r["seeds"] == [1] for r in _tin))
 check("clean within 0.05 of chance", "A model trained on clean\nimages only is within $@$ of chance", 0.05)
 word("clean near chance both datasets", "within $0.05$ of chance at every matched point on both data sets",
@@ -1229,7 +1224,7 @@ check("tin noise gaps", "measured avoidable error is $@$, $@$ and $@$ at\n$t = 0
 check("tin noise TENT vs BN", "TENT is better than BN-adapt by $@$, $@$ and\n$@$ at those severities",
       *[_ta[t]["err_bnadapt"] - _ta[t]["err_tent"] for t in ("0.05", "0.1", "0.2")])
 
-design("TIN resolution (limitations)", "Tiny-ImageNet, at $@\\times@$ with one seed, the matched fog pairs", const(_TIN, r"^IMG_SIZE = (\d+)"), const(_TIN, r"^IMG_SIZE = (\d+)"))
+design("TIN resolution (limitations)", "Tiny-ImageNet, at $@\\times@$ with one seed, repeats the matched fog pairs", const(_TIN, r"^IMG_SIZE = (\d+)"), const(_TIN, r"^IMG_SIZE = (\d+)"))
 
 check("scale caption: omitted pair", "omits the pair at $v = @$", sorted(F("fc_pairs"), key=lambda r: r["v"])[0]["v"])
 import glob as _g
@@ -1242,12 +1237,12 @@ word("TIN: only separate-model fog pairs and noise", "the matched fog pairs with
      _tin_models == {"clean", "diffuse_own", "drift_matched"} and _tin_fams == {"fog_drift", "fog_diffuse", "gauss_noise"})
 
 _cb = F("c100_blur")
-check("c100 blur pair", "leave the\nfrozen model at $@$ and $@$ error, and BN-adapt removes $@$ of the\nfirst and $@$ of the second, a factor of $@$; the oracles are at $@$\nand $@$",
+check("c100 blur pair", "leave the\nfrozen model at $@$ error under deterministic blur and $@$ under heat-equation\nblur. BN-adapt removes $@$ and $@$ of these errors, a factor of $@$, and with\nthe oracles at $@$ and $@$",
       _cb["gauss_blur@2.0"]["frozen"][0], _cb["blurfft_s15_a01@2.0"]["frozen"][0], _cb["gauss_blur@2.0"]["bn_removes"][0],
       _cb["blurfft_s15_a01@2.0"]["bn_removes"][0], F("c100_blur_ratio_bn"), _cb["gauss_blur@2.0"]["oracle"][0], _cb["blurfft_s15_a01@2.0"]["oracle"][0])
 _ga, _gb = _cb["gauss_blur@2.0"], _cb["blurfft_s15_a01@2.0"]
 _gapa, _gapb = _ga["frozen"][0] - _ga["oracle"][0], _gb["frozen"][0] - _gb["oracle"][0]
-check("c100 blur fractions", "BN-adapt removes $@\\%$ of the first oracle-measured gap and\n$@\\%$ of the second",
+check("c100 blur fractions", "this is $@\\%$ of the oracle-measured gap under\ndeterministic blur and $@\\%$ under heat-equation blur",
       100 * _ga["bn_removes"][0] / _gapa, 100 * _gb["bn_removes"][0] / _gapb)
 word("c100 blur: neither gap closed", "and closes neither gap", _gapa - _ga["bn_removes"][0] > 0.05 and _gapb - _gb["bn_removes"][0] > 0.05)
 word("c100 blur three seeds", "On CIFAR-100 the two blur families", all(v["n"] == 3 for v in _cb.values()))
