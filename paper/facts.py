@@ -89,6 +89,8 @@ for fam in FAMS:
         v = [m(fam, t, k) for k in ("err_bnadapt", "err_tent", "err_eata")]
         spread.append(max(v) - min(v))
 F["sgd_bn_tent_eata_spread_max"] = max(spread)
+# TENT against EATA alone at the original SGD setting (Appendix G: "to within ...")
+F["sgd_tent_eata_diff_max"] = max(abs(m(fam, t, "err_tent") - m(fam, t, "err_eata")) for fam in FAMS for t in held_out(fam))
 noise_spread = [max(m("gauss_noise", t, k) for k in ("err_bnadapt", "err_tent", "err_eata"))
                 - min(m("gauss_noise", t, k) for k in ("err_bnadapt", "err_tent", "err_eata"))
                 for t in held_out("gauss_noise")]

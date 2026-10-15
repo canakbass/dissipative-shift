@@ -5238,6 +5238,7 @@
  },
  "sgd_bn_tent_eata_spread_max": 0.005033333333333334,
  "sgd_noise_spread_max": 0.002366666666666628,
+ "sgd_tent_eata_diff_max": 0.00039999999999995595,
  "sweep": {
   "fog_beer_lambert": {
    "adam": 0.629175,

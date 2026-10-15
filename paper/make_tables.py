@@ -285,7 +285,7 @@ def _jrows(pat):
 
 
 lines = [r"\begin{table}[t]",
-         r"\caption{The joint model at the short budget used elsewhere in the paper (15 epochs, one crop and flip per batch) and at the standard CIFAR budget (200 epochs, per-sample crop and flip), at the fog pairs matched in equivalent variance $v$. Error on the drift and the diffusion member, three-seed means; the two members have the same Bayes risk. ``Clean'' is the model's error on uncorrupted test images, measured only in the 200-epoch run; the joint model sees uncorrupted images in one fifth of its training data, so this is higher than for a model trained on clean images alone. The last two columns: the 200-epoch model's gap after BN-adapt and after TENT (Adam).}",
+         r"\caption{The joint model at the short budget used elsewhere in the paper (15 epochs, one crop and flip per batch) and at the standard CIFAR budget (200 epochs, per-sample crop and flip), at the fog pairs matched in equivalent variance $v$. Error on the drift and the diffusion member, three-seed means; the two members have the same Bayes risk. ``Clean'' is the model's error on uncorrupted test images, measured only in the 200-epoch run; the joint model sees uncorrupted images in one fifth of its training data, hence higher than for a clean-only model. Last two columns: the 200-epoch model's gap after BN-adapt and TENT (Adam).}",
          r"\label{tab:budget}", r"\centering\footnotesize\setlength{\tabcolsep}{4pt}",
          r"\begin{tabular}{llcccccccc}", r"\toprule",
          r" & & \multicolumn{3}{c}{15 epochs} & \multicolumn{5}{c}{200 epochs} \\",
@@ -323,7 +323,7 @@ if "pad_c10" in _facts and "pad_c100" in _facts:
     names = {"zeros": "zero (as trained)", "reflect": "reflect", "circular": "circular", "haze": "haze value",
              "standardize": "standardized at inference"}
     lines = [r"\begin{table}[!htbp]",
-             r"\caption{The 200-epoch joint model with its first convolution padded in five ways at inference, and retrained (``trained'') with reflect padding, GroupNorm, layer normalization or standardized input: gap, error on the drift minus the diffusion member of each matched fog pair, three-seed means. A star marks a pair that passes the decision rule of Section~\ref{sec:fog-ablation}.}",
+             r"\caption{The 200-epoch joint model with its first convolution padded in five ways at inference, and retrained (``trained'') with reflect padding, GroupNorm, layer normalization or standardized input: gap (drift minus diffusion error at each matched fog pair), three-seed means; a star marks a pair passing the rule of Section~\ref{sec:fog-ablation}. The zero-padding row uses fresh noise draws, so it differs slightly from Table~\ref{tab:budget}.}",
              r"\label{tab:padding}",
              r"\centering\scriptsize\setlength{\tabcolsep}{3pt}",
              r"\begin{tabular}{llcccccccc}", r"\toprule",
@@ -378,7 +378,7 @@ if "bench" in _facts:
                for m_ in ms_ for c_ in ("contrast", "brightness", "fog", "gaussian_noise"))
     short = {"cifar10_resnet20": "R-20", "cifar10_resnet56": "R-56", "cifar10_vgg13_bn": "VGG"}
     lines = [r"\begin{table}[!htbp]",
-             r"\caption{CIFAR-10-C, pretrained ResNet-20 (R-20), ResNet-56 (R-56) and VGG-13-BN (VGG), first convolution padded with zeros (as trained) or reflect. Errors: five-severity means, zero padding; gain: zero-padding minus reflect-padding error. Paired standard errors of the BN-adapt gains lie between " + f"{math.floor(min(_ses) * 1e4) / 1e4:.4f} and {math.ceil(max(_ses) * 1e4) / 1e4:.4f}" + r"; every BN-adapt gain under a corruption exceeds three times its standard error in magnitude.}",
+             r"\caption{CIFAR-10-C, pretrained ResNet-20 (R-20), ResNet-56 (R-56) and VGG-13-BN (VGG), first convolution padded with zeros (as trained) or reflect. Errors: five-severity means, zero padding; gain: zero-padding minus reflect-padding error. Paired standard errors of BN-adapt gains lie between " + f"{math.floor(min(_ses) * 1e4) / 1e4:.4f} and {math.ceil(max(_ses) * 1e4) / 1e4:.4f}" + r"; every BN-adapt gain under a corruption exceeds three times its standard error in magnitude.}",
              r"\label{tab:bench}",
              r"\centering\scriptsize\setlength{\tabcolsep}{2.5pt}",
              r"\begin{tabular}{l" + "c" * (3 * len(ms_) + 1) + "}", r"\toprule",
