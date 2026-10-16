@@ -832,6 +832,11 @@ _pos = [c for c in cert_all if c["slack"] > 0]
 F["cert_all_n"], F["cert_all_pos"], F["cert_all_K"] = len(cert_all), len(_pos), len(_wit)
 F["cert_all_z"] = float(_zK)
 F["cert_all_expected"] = 0.05 * len(cert_all)
+# the 99 are oracle runs: 21 (family, severity, seed) points were trained twice, in the fog
+# ablation and in the matched-pair run, so they are 78 distinct points
+_pt = lambda c: (c["oracle"].split("/")[-1], round(c["v"], 6), c["seed"])
+F["cert_all_points"] = len({_pt(c) for c in cert_all})
+F["cert_all_points_pos"] = len({_pt(c) for c in cert_all if c["slack"] > 0})
 F["cert_all_max"] = max(c["slack"] for c in _pos)
 F["cert_all_by_joint200"] = sum(c["witness"].startswith("joint200") for c in _pos)
 F["cert_all_by_witness"] = {w: sum(c["witness"] == w for c in _pos) for w in sorted({c["witness"] for c in _pos})}

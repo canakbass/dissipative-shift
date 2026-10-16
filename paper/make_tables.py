@@ -7,10 +7,22 @@ import statistics as st
 from collections import defaultdict
 
 
+HALF_TOL = 1e-4   # the paper's rule (Section 4.1): nearest, an exact half away from zero; see verify_claims.py
+
+
+def _hu(x, nd, sign=False):
+    """x rounded to nd decimals by the paper's rule and formatted; float32 halves such as
+    0.01449998 count as halves."""
+    r = math.copysign(math.floor(abs(x) * 10 ** nd + 0.5 + HALF_TOL), x) / 10 ** nd
+    if r == 0:
+        r = 0.0 * (1 if x >= 0 else -1)
+    return f"{r:+.{nd}f}" if sign else f"{r:.{nd}f}"
+
+
 def sg(v, nd=4):
     """Signed number in math mode, so LaTeX renders a real minus sign rather than a
     plain-text hyphen."""
-    return f"${v:+.{nd}f}$"
+    return f"${_hu(v, nd, True)}$"
 
 
 BASE = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
@@ -36,13 +48,13 @@ lines = [r"\begin{table}[!htbp]",
          r"$t$ & $R^*$ & slack & $\Delta^*$ & extrap.\ err. & $R^*$ & slack & pred.\ $\Delta^*$ & meas.$-$pred. & $R^*$ & slack & $\Delta^*$ & extrap.\ err. \\",
          r"\midrule"]
 for t in sorted(set(kt) | set(ka) | set(kf)):
-    c = [f"{t:.1f}"]
+    c = [f"{_hu(t, 1)}"]
     r = kt.get(t)
-    c += [f"{r['r_star_closed']:.4f}", sg(r['oracle_slack']), sg(r['delta']), sg(r['extrapolation_error'])] if r else ["---"] * 4
+    c += [f"{_hu(r['r_star_closed'], 4)}", sg(r['oracle_slack']), sg(r['delta']), sg(r['extrapolation_error'])] if r else ["---"] * 4
     r = ka.get(t)
-    c += [f"{r['r_star']:.4f}", sg(r['oracle_slack']), f"{r['delta_pred']:.4f}", sg(r['frozen_meas'] - r['frozen_pred'])] if r else ["---"] * 4
+    c += [f"{_hu(r['r_star'], 4)}", sg(r['oracle_slack']), f"{_hu(r['delta_pred'], 4)}", sg(r['frozen_meas'] - r['frozen_pred'])] if r else ["---"] * 4
     r = kf.get(t)
-    c += [f"{r['r_star_closed']:.4f}", sg(r['oracle_slack']), sg(r['delta']), sg(r['extrapolation_error'])] if r else ["---"] * 4
+    c += [f"{_hu(r['r_star_closed'], 4)}", sg(r['oracle_slack']), sg(r['delta']), sg(r['extrapolation_error'])] if r else ["---"] * 4
     lines.append(" & ".join(c) + r" \\")
 lines += [r"\bottomrule", r"\end{tabular}}", r"\label{tab:app-killtest}", r"\end{table}"]
 with open(f"{OUT}/killtest_table.tex", "w") as f:
@@ -126,7 +138,7 @@ def ms(vals):
         return "---"
     m = st.mean(vals)
     s = st.stdev(vals) if len(vals) > 1 else 0.0
-    return f"{m:+.3f}$\\pm${s:.3f}"
+    return f"{_hu(m, 3, True)}$\\pm${_hu(s, 3)}"
 
 
 lines = [r"\begin{table}[!htbp]",
@@ -137,7 +149,7 @@ lines = [r"\begin{table}[!htbp]",
 for k in sorted(oracle_by_key.keys(), key=lambda kk: (kk[0], kk[1])):
     fam, t = k
     dagger = r"$\dagger$" if train_flag[k] else ""
-    lines.append(f"{fam_names[fam]} & {t:.3f} & {ms(d_frozen[k])} & {ms(d_bnadapt[k])} & {ms(d_dann[k])} & {ms(d_tent[k])} & {ms(d_eata[k])} & {dagger} \\\\")
+    lines.append(f"{fam_names[fam]} & {_hu(t, 3)} & {ms(d_frozen[k])} & {ms(d_bnadapt[k])} & {ms(d_dann[k])} & {ms(d_tent[k])} & {ms(d_eata[k])} & {dagger} \\\\")
 lines += [r"\bottomrule", r"\end{tabular}", r"\label{tab:app-cifar}", r"\end{table}"]
 with open(f"{OUT}/cifar_table.tex", "w") as f:
     f.write("\n".join(lines) + "\n")
@@ -161,13 +173,13 @@ for t in sorted({r["t"] for r in FX}):
     rs = [r for r in FX if r["t"] == t]
     dagger = r"$\dagger$" if rs[0]["is_train_severity"] else ""
     cells = [ms([r[k] for r in rs]) for k in ("err_oracle", "delta_frozen", "delta_bnadapt", "delta_tent", "delta_eata")]
-    lines.append(f"Gaussian noise & {t:.3f} & " + " & ".join(cells) + f" & {dagger} \\\\")
+    lines.append(f"Gaussian noise & {_hu(t, 3)} & " + " & ".join(cells) + f" & {dagger} \\\\")
 for fam in ("blurfft_s15_a01", "fog_beer_lambert", "gauss_blur"):
     for t in sorted({r["t"] for r in AM if r["family"] == fam}):
         rs = [r for r in AM if r["family"] == fam and r["t"] == t]
         dagger = r"$\dagger$" if rs[0]["is_train_severity"] else ""
         cells = [ms([r[k] for r in rs]) for k in ("err_oracle", "delta_frozen", "delta_bnadapt", "delta_tent", "delta_eata")]
-        lines.append(f"{am_names[fam]} & {t:.3f} & " + " & ".join(cells) + f" & {dagger} \\\\")
+        lines.append(f"{am_names[fam]} & {_hu(t, 3)} & " + " & ".join(cells) + f" & {dagger} \\\\")
 lines += [r"\bottomrule", r"\end{tabular}", r"\label{tab:adam-all}", r"\end{table}"]
 with open(f"{OUT}/adam_table.tex", "w") as f:
     f.write("\n".join(lines) + "\n")
@@ -208,7 +220,7 @@ for t in (0.25, 0.5, 1.0, 2.0):
     cells = [removed(MAIN[("gauss_blur", t)])] + \
             [removed([r for r in FBR if r["family"] == fam and r["t"] == t]) for fam in ("blurfft_s0_a0", "blurfft_s0_a01", "blurfft_s15_a0")] + \
             [removed(MAIN[("blur_heat", t)])]
-    lines.append(f"{t:.2f} & " + " & ".join(cells) + r" \\")
+    lines.append(f"{_hu(t, 2)} & " + " & ".join(cells) + r" \\")
 lines += [r"\bottomrule", r"\end{tabular}", r"\end{table}"]
 with open(f"{OUT}/factorial_table.tex", "w") as f:
     f.write("\n".join(lines) + "\n")
@@ -243,10 +255,10 @@ lines = [r"\begin{table}[t]",
 for td, tD in zip(drift_ts, diff_ts):
     v = [r["v"] for r in FJR if r["family"] == "fog_diffuse" and r["t"] == tD][0]
     hz = [r["v_horizon"] for r in FJR if r["family"] == "fog_diffuse" and r["t"] == tD][0]
-    cells = [f"{v:.3f}", f"{td:.2f}", f"{tD:.0f}", f"{hz:.1f}",
-             f"{_m(FCR, 'fog_drift', td, 'clean', 'err_oracle'):.3f}", f"{_m(FCR, 'fog_diffuse', tD, 'clean', 'err_oracle'):.3f}",
-             f"{_m(FJR, 'fog_drift', td, 'joint'):.3f}", f"{_m(FJR, 'fog_diffuse', tD, 'joint'):.3f}",
-             f"{_m(FCR, 'fog_drift', td, 'drift_matched'):.3f}", f"{_m(FCR, 'fog_diffuse', tD, 'diffuse_own'):.3f}"]
+    cells = [f"{_hu(v, 3)}", f"{_hu(td, 2)}", f"{_hu(tD, 0)}", f"{_hu(hz, 1)}",
+             f"{_hu(_m(FCR, 'fog_drift', td, 'clean', 'err_oracle'), 3)}", f"{_hu(_m(FCR, 'fog_diffuse', tD, 'clean', 'err_oracle'), 3)}",
+             f"{_hu(_m(FJR, 'fog_drift', td, 'joint'), 3)}", f"{_hu(_m(FJR, 'fog_diffuse', tD, 'joint'), 3)}",
+             f"{_hu(_m(FCR, 'fog_drift', td, 'drift_matched'), 3)}", f"{_hu(_m(FCR, 'fog_diffuse', tD, 'diffuse_own'), 3)}"]
     lines.append(" & ".join(cells) + r" \\")
 lines += [r"\bottomrule", r"\end{tabular}", r"\end{table}"]
 with open(f"{OUT}/matched_table.tex", "w") as f:
@@ -270,9 +282,9 @@ for name, FC_, FJ_ in (("CIFAR-100", C1, CJ), ("Tiny-ImageNet", TF, None)):
     for td in dts:
         v = [r["v"] for r in FC_ if r["family"] == "fog_drift" and r["t"] == td][0]
         tD = [r["t"] for r in FC_ if r["family"] == "fog_diffuse" and abs(r["v"] - v) / v < 1e-3][0]
-        cells = [name, f"{v:.3f}", f"{_m(FC_, 'fog_drift', td, 'clean', 'err_oracle'):.3f}", f"{_m(FC_, 'fog_diffuse', tD, 'clean', 'err_oracle'):.3f}"]
-        cells += [f"{_m(FJ_, 'fog_drift', td, 'joint'):.3f}", f"{_m(FJ_, 'fog_diffuse', tD, 'joint'):.3f}"] if FJ_ else ["---", "---"]
-        cells += [f"{_m(FC_, 'fog_drift', td, 'drift_matched'):.3f}", f"{_m(FC_, 'fog_diffuse', tD, 'diffuse_own'):.3f}"]
+        cells = [name, f"{_hu(v, 3)}", f"{_hu(_m(FC_, 'fog_drift', td, 'clean', 'err_oracle'), 3)}", f"{_hu(_m(FC_, 'fog_diffuse', tD, 'clean', 'err_oracle'), 3)}"]
+        cells += [f"{_hu(_m(FJ_, 'fog_drift', td, 'joint'), 3)}", f"{_hu(_m(FJ_, 'fog_diffuse', tD, 'joint'), 3)}"] if FJ_ else ["---", "---"]
+        cells += [f"{_hu(_m(FC_, 'fog_drift', td, 'drift_matched'), 3)}", f"{_hu(_m(FC_, 'fog_diffuse', tD, 'diffuse_own'), 3)}"]
         lines.append(" & ".join(cells) + r" \\")
 lines += [r"\bottomrule", r"\end{tabular}", r"\end{table}"]
 with open(f"{OUT}/scale_table.tex", "w") as f:
@@ -299,19 +311,19 @@ for name, short, full in (("CIFAR-10", "fog-joint-s[0-9]/output/cifar10_c_result
     for td in sorted({r["t"] for r in S_ if r["family"] == "fog_drift"}):
         v = [r["v"] for r in S_ if r["family"] == "fog_drift" and r["t"] == td][0]
         tD = [r["t"] for r in S_ if r["family"] == "fog_diffuse" and abs(r["v"] - v) / v < 1e-3][0]
-        cells = [name, f"{v:.3f}"]
+        cells = [name, f"{_hu(v, 3)}"]
         for R__ in (S_, L_):
             a, b = _m(R__, "fog_drift", td, "joint"), _m(R__, "fog_diffuse", tD, "joint")
-            cells += [f"{a:.3f}", f"{b:.3f}", f"${a - b:+.3f}$"]
+            cells += [f"{_hu(a, 3)}", f"{_hu(b, 3)}", f"${_hu(a - b, 3, True)}$"]
         for key in ("err_bnadapt", "err_tent"):   # the 200-epoch model's gap after adaptation
             a = st.mean(r[key] for r in L_ if r["family"] == "fog_drift" and r["t"] == td)
             b = st.mean(r[key] for r in L_ if r["family"] == "fog_diffuse" and r["t"] == tD)
-            cells.append(f"${a - b:+.3f}$")
+            cells.append(f"${_hu(a - b, 3, True)}$")
         lines.append(" & ".join(cells) + r" \\")
     cl_s = [r["err_frozen"] for r in _rows(short) if r["family"] == "clean"]
     cl_l = [r["err_frozen"] for r in _rows(full) if r["family"] == "clean"]
-    lines.append(f"{name} & clean & \\multicolumn{{3}}{{c}}{{{st.mean(cl_s):.3f}}} & \\multicolumn{{5}}{{c}}{{{st.mean(cl_l):.3f}}} \\\\"
-                 if cl_s else f"{name} & clean & \\multicolumn{{3}}{{c}}{{---}} & \\multicolumn{{5}}{{c}}{{{st.mean(cl_l):.3f}}} \\\\")
+    lines.append(f"{name} & clean & \\multicolumn{{3}}{{c}}{{{_hu(st.mean(cl_s), 3)}}} & \\multicolumn{{5}}{{c}}{{{_hu(st.mean(cl_l), 3)}}} \\\\"
+                 if cl_s else f"{name} & clean & \\multicolumn{{3}}{{c}}{{---}} & \\multicolumn{{5}}{{c}}{{{_hu(st.mean(cl_l), 3)}}} \\\\")
 lines += [r"\bottomrule", r"\end{tabular}", r"\end{table}"]
 with open(f"{OUT}/budget_table.tex", "w") as f:
     f.write("\n".join(lines) + "\n")
@@ -338,14 +350,14 @@ if "pad_c10" in _facts and "pad_c100" in _facts:
             for key in ("frozen", "bnadapt"):
                 for v in vs:
                     g = _facts[tag][k][key][v]
-                    cells.append(f"${g['gap']:+.3f}$" + (r"$^\ast$" if g["positive"] else ""))
+                    cells.append(f"${_hu(g['gap'], 3, True)}$" + (r"$^\ast$" if g["positive"] else ""))
             lines.append(f"{ds} & {names[k]} & " + " & ".join(cells) + r" \\")
         if tag == "pad_c10" and "fjr_pairs" in _facts:
             fr = sorted(_facts["fjr_pairs"], key=lambda q: q["v"])
             ad = sorted(_facts["fjr_adapt"], key=lambda q: q["v"])
-            assert [f"{q['v']:.3f}" for q in fr] == vs
-            cells = [f"${q['d_raw_mean']:+.3f}$" + (r"$^\ast$" if q["positive"] else "") for q in fr]
-            cells += [f"${q['bn_gap']:+.3f}$" + (r"$^\ast$" if q["bn_positive"] else "") for q in ad]
+            assert [f"{_hu(q['v'], 3)}" for q in fr] == vs
+            cells = [f"${_hu(q['d_raw_mean'], 3, True)}$" + (r"$^\ast$" if q["positive"] else "") for q in fr]
+            cells += [f"${_hu(q['bn_gap'], 3, True)}$" + (r"$^\ast$" if q["bn_positive"] else "") for q in ad]
             lines.append(r"CIFAR-10 & reflect, trained & " + " & ".join(cells) + r" \\")
             # the normalization ablation, retrained (no BN-adapt without batch normalization)
             for key, label in (("fjgn", "GroupNorm, trained"), ("fjln", "layer norm, trained"),
@@ -353,11 +365,11 @@ if "pad_c10" in _facts and "pad_c100" in _facts:
                 if key + "_pairs" not in _facts:
                     continue
                 fr = sorted(_facts[key + "_pairs"], key=lambda q: q["v"])
-                assert [f"{q['v']:.3f}" for q in fr] == vs
-                cells = [f"${q['d_raw_mean']:+.3f}$" + (r"$^\ast$" if q["positive"] else "") for q in fr]
+                assert [f"{_hu(q['v'], 3)}" for q in fr] == vs
+                cells = [f"${_hu(q['d_raw_mean'], 3, True)}$" + (r"$^\ast$" if q["positive"] else "") for q in fr]
                 if key + "_adapt" in _facts:
                     ad = sorted(_facts[key + "_adapt"], key=lambda q: q["v"])
-                    cells += [f"${q['bn_gap']:+.3f}$" + (r"$^\ast$" if q["bn_positive"] else "") for q in ad]
+                    cells += [f"${_hu(q['bn_gap'], 3, True)}$" + (r"$^\ast$" if q["bn_positive"] else "") for q in ad]
                 else:
                     cells += ["---"] * len(vs)
                 lines.append(f"CIFAR-10 & {label} & " + " & ".join(cells) + r" \\")
@@ -378,7 +390,7 @@ if "bench" in _facts:
                for m_ in ms_ for c_ in ("contrast", "brightness", "fog", "gaussian_noise"))
     short = {"cifar10_resnet20": "R-20", "cifar10_resnet56": "R-56", "cifar10_vgg13_bn": "VGG"}
     lines = [r"\begin{table}[!htbp]",
-             r"\caption{CIFAR-10-C, pretrained ResNet-20 (R-20), ResNet-56 (R-56) and VGG-13-BN (VGG), first convolution padded with zeros (as trained) or reflect. Errors: five-severity means, zero padding; gain: zero-padding minus reflect-padding error. Paired standard errors of BN-adapt gains lie between " + f"{math.floor(min(_ses) * 1e4) / 1e4:.4f} and {math.ceil(max(_ses) * 1e4) / 1e4:.4f}" + r"; every BN-adapt gain under a corruption exceeds three times its standard error in magnitude.}",
+             r"\caption{CIFAR-10-C, pretrained ResNet-20 (R-20), ResNet-56 (R-56) and VGG-13-BN (VGG), first convolution padded with zeros (as trained) or reflect. Errors: five-severity means, zero padding; gain: zero-padding minus reflect-padding error. Paired standard errors of BN-adapt gains lie between " + f"{_hu(math.floor(min(_ses) * 1e4) / 1e4, 4)} and {_hu(math.ceil(max(_ses) * 1e4) / 1e4, 4)}" + r"; every BN-adapt gain under a corruption exceeds three times its standard error in magnitude.}",
              r"\label{tab:bench}",
              r"\centering\scriptsize\setlength{\tabcolsep}{2.5pt}",
              r"\begin{tabular}{l" + "c" * (3 * len(ms_) + 1) + "}", r"\toprule",
@@ -390,7 +402,7 @@ if "bench" in _facts:
         cells += [f"${B[f'{m_}|{c_}|bnadapt']['G']:+.4f}$" for m_ in ms_]
         cells += [f"${B[f'{m_}|{c_}|frozen']['G']:+.4f}$" if f"{m_}|{c_}|frozen" in B else "---" for m_ in ms_]
         te = B.get(f"{ms_[0]}|{c_}|tent")
-        cells += [f"${te['G']:+.4f}$" if te else "---"]
+        cells += [f"${_hu(te['G'], 4, True)}$" if te else "---"]
         lines.append(f"{cnames[c_]} & " + " & ".join(cells) + r" \\")
     lines += [r"\bottomrule", r"\end{tabular}", r"\end{table}"]
     with open(f"{OUT}/bench_table.tex", "w") as f:
@@ -401,7 +413,7 @@ if "bench" in _facts:
 print("\n--- summary numbers quoted in the main text ---")
 for k in [("gauss_noise", 0.2), ("gauss_blur", 2.0), ("fog_beer_lambert", 2.0), ("fog_beer_lambert", 4.0)]:
     om = st.mean(oracle_by_key[k])
-    print(f"{k}: oracle={om:.4f}  D_frozen={ms(d_frozen[k])}  D_bnadapt={ms(d_bnadapt[k])}  D_dann={ms(d_dann[k])}  D_tent={ms(d_tent[k])}  D_eata={ms(d_eata[k])}")
+    print(f"{k}: oracle={_hu(om, 4)}  D_frozen={ms(d_frozen[k])}  D_bnadapt={ms(d_bnadapt[k])}  D_dann={ms(d_dann[k])}  D_tent={ms(d_tent[k])}  D_eata={ms(d_eata[k])}")
 
 print("\n--- t=0 (clean) oracle error, per family ---")
 for fam in fam_names:

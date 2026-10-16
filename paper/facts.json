@@ -2626,6 +2626,8 @@
  "cert_all_expected": 4.95,
  "cert_all_max": 0.07025633214397972,
  "cert_all_n": 99,
+ "cert_all_points": 78,
+ "cert_all_points_pos": 32,
  "cert_all_pos": 43,
  "cert_all_z": 3.674736256384331,
  "cert_control": {
