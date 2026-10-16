@@ -210,7 +210,7 @@ def removed(rs):
 
 
 lines = [r"\begin{table}[t]",
-         r"\caption{Error removed by BN-adapt, $\mathrm{Err}_{\text{frozen}} - \mathrm{Err}_{\text{BN-adapt}}$, at the held-out severities of the blur families, mean $\pm$ standard deviation over three seeds. The middle three columns are one periodic Fourier operator with the noise term ($\sigma_{\text{blur}}$) and the contrast floor ($a_{\min}$) switched on or off; the outer two columns are the families of the main experiments, from the main run. Only the noise term changes the Bayes risk.}",
+         r"\caption{Error removed by BN-adapt, $\mathrm{Err}_{\text{frozen}} - \mathrm{Err}_{\text{BN-adapt}}$, at held-out severities, mean $\pm$ standard deviation over three seeds. The four right columns are a factorial on one periodic Fourier operator, with the noise term ($\sigma_{\text{blur}}$) and the contrast floor ($a_{\min}$) on or off; its last cell, heat-equation blur, is from the main run. The left column, the main run's deterministic blur, is not part of it. Only the noise term changes the Bayes risk.}",
          r"\label{tab:factorial}", r"\centering\footnotesize\setlength{\tabcolsep}{4pt}",
          r"\begin{tabular}{cccccc}", r"\toprule",
          r" & Reflect-padded, & \multicolumn{3}{c}{Periodic Fourier operator} & Heat-equation \\",
@@ -275,7 +275,7 @@ lines = [r"\begin{table}[!htbp]",
          r"\begin{tabular}{lccccccc}", r"\toprule",
          r" & & \multicolumn{2}{c}{Oracle} & \multicolumn{2}{c}{Joint model} & \multicolumn{2}{c}{Separate models} \\",
          r"\cmidrule(lr){3-4}\cmidrule(lr){5-6}\cmidrule(lr){7-8}",
-         r"Dataset & $v$ & Drift & Diffusion & Drift & Diffusion & Drift & Diffusion \\", r"\midrule"]
+         r"Data set & $v$ & Drift & Diffusion & Drift & Diffusion & Drift & Diffusion \\", r"\midrule"]
 for name, FC_, FJ_ in (("CIFAR-100", C1, CJ), ("Tiny-ImageNet", TF, None)):
     dts = sorted({r["t"] for r in FC_ if r["family"] == "fog_drift" and r["model"] == "drift_matched"
                   and any(abs(q["v"] - r["v"]) / r["v"] < 1e-3 for q in FC_ if q["family"] == "fog_diffuse")})
@@ -302,7 +302,7 @@ lines = [r"\begin{table}[t]",
          r"\begin{tabular}{llcccccccc}", r"\toprule",
          r" & & \multicolumn{3}{c}{15 epochs} & \multicolumn{5}{c}{200 epochs} \\",
          r"\cmidrule(lr){3-5}\cmidrule(lr){6-10}",
-         r"Dataset & $v$ & Drift & Diffusion & Gap & Drift & Diffusion & Gap & BN-adapt & TENT \\", r"\midrule"]
+         r"Data set & $v$ & Drift & Diffusion & Gap & Drift & Diffusion & Gap & BN-adapt & TENT \\", r"\midrule"]
 for name, short, full in (("CIFAR-10", "fog-joint-s[0-9]/output/cifar10_c_results_fog_joint_seed*.jsonl",
                            "fog-joint-full-s[0-9]/output/cifar10_c_results_fog_joint_full_seed*.jsonl"),
                           ("CIFAR-100", "c100-fog-joint-s[0-9]/output/cifar100_c_results_c100_fog_joint_seed*.jsonl",
@@ -335,14 +335,14 @@ if "pad_c10" in _facts and "pad_c100" in _facts:
     names = {"zeros": "zero (as trained)", "reflect": "reflect", "circular": "circular", "haze": "haze value",
              "standardize": "standardized at inference"}
     lines = [r"\begin{table}[!htbp]",
-             r"\caption{The 200-epoch joint model with its first convolution padded in five ways at inference, and retrained (``trained'') with reflect padding, GroupNorm, layer normalization or standardized input: gap (drift minus diffusion error at each matched fog pair), three-seed means; a star marks a pair passing the rule of Section~\ref{sec:fog-ablation}. The zero-padding row uses fresh noise draws, so it differs slightly from Table~\ref{tab:budget}.}",
+             r"\caption{The 200-epoch joint model with five versions of its first layer at inference, all on one fresh draw of the corruption noise, and retrained (``trained'') with reflect padding, GroupNorm, layer normalization or standardized input: gap (drift minus diffusion error at each matched fog pair), three-seed means; a star marks a pair passing the rule of Section~\ref{sec:fog-ablation}. The zero-padding rows differ slightly from Table~\ref{tab:budget} because of that draw.}",
              r"\label{tab:padding}",
              r"\centering\scriptsize\setlength{\tabcolsep}{3pt}",
              r"\begin{tabular}{llcccccccc}", r"\toprule",
              r" & & \multicolumn{4}{c}{Frozen, at $v =$} & \multicolumn{4}{c}{BN-adapt, at $v =$} \\",
              r"\cmidrule(lr){3-6}\cmidrule(lr){7-10}"]
     vs = sorted(_facts["pad_c10"]["zeros"]["frozen"], key=float)
-    lines.append(r"Dataset & Variant & " + " & ".join(f"${v}$" for v in vs + vs) + r" \\")
+    lines.append(r"Data set & Variant & " + " & ".join(f"${v}$" for v in vs + vs) + r" \\")
     lines.append(r"\midrule")
     for tag, ds in (("pad_c10", "CIFAR-10"), ("pad_c100", "CIFAR-100")):
         for k in ("zeros", "reflect", "circular", "haze", "standardize"):
