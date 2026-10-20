@@ -361,10 +361,10 @@ for t in (0.25, 0.5, 1.0, 2.0):
     op[t] = dict(min_sv_2d=float(sv.min() ** 2), cond_2d=float((sv.max() / sv.min()) ** 2))
 F["blur_operator"] = op
 # the truncated kernel's transfer function changes sign as t grows, so the (symmetric) operator is
-# singular at isolated severities; the first lies between our grid points 1 and 2
+# singular at isolated severities; the first (scanned from t = 0.01) lies between our grid points 1 and 2
 from scipy.optimize import brentq
 _det = lambda t: np.linalg.det(blur_matrix(t))
-_tg = np.linspace(1.0, 2.0, 201)
+_tg = np.linspace(0.01, 2.0, 400)  # from near zero, so the first sign change is the first singular severity
 _sg = [np.sign(_det(t)) for t in _tg]
 _k = next(i for i in range(len(_tg) - 1) if _sg[i] != _sg[i + 1])
 F["blur_first_singular_t"] = float(brentq(_det, _tg[_k], _tg[_k + 1]))

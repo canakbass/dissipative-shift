@@ -39,7 +39,7 @@ kt = {r["t"]: r for r in (json.loads(l) for l in open(f"{BASE}/kill_test_results
 ka = {r["t"]: r for r in (json.loads(l) for l in open(f"{BASE}/kill_test_asym_results.jsonl"))}
 kf = {r["t"]: r for r in (json.loads(l) for l in open(f"{BASE}/kill_test_fog_results.jsonl"))}
 lines = [r"\begin{table}[!htbp]",
-         r"\caption{Sanity checks against closed form. For each check, the Bayes risk $R^*(t)$, the slack of the retrained oracle, $\mathrm{Err}_{\text{oracle}}(t) - R^*(t)$, and the frozen classifier's true avoidable error $\Delta^*_{\text{frozen}}(t) = \mathrm{Err}_{\text{frozen}}(t) - R^*(t)$; where a generator is estimated at three low severities, the error of $R^*(t)$ extrapolated from it. Additive noise, equal priors: the hypothesis class (linear) contains the Bayes rule and the oracle is within $0.0043$ of $R^*$ throughout; the frozen classifier is Bayes-optimal by construction, so $\Delta^*_{\text{frozen}}$ is zero up to sampling noise. Unequal priors ($\pi_0 = 0.8$): the Bayes threshold moves with $t$, so a classifier frozen at $t \le 0.2$ has a known, non-zero $\Delta^*_{\text{frozen}}(t)$ (``predicted''), which the measured frozen error must match. It does, to within $0.0016$, and the oracle is within $0.0008$ of $R^*$. Fog: $R^*(t) \to 0.5$ as $t\to\infty$, so the corruption destroys information; the generator behind the extrapolation error is estimated from labelled class means and variances (the bracket of Section~\ref{sec:killtest} uses unlabelled samples), and the setting is symmetric, so the frozen side is not exercised. Negative values are finite-sample noise in the evaluation set.}",
+         r"\caption{Sanity checks against closed form. For each check, the Bayes risk $R^*(t)$, the slack of the retrained oracle, $\mathrm{Err}_{\text{oracle}}(t) - R^*(t)$, and the frozen classifier's true avoidable error $\Delta^*_{\text{frozen}}(t) = \mathrm{Err}_{\text{frozen}}(t) - R^*(t)$; where a generator is estimated at three low severities, the error of $R^*(t)$ extrapolated from it. Additive noise, equal priors: the hypothesis class (linear) contains the Bayes rule and the oracle is within $0.0043$ of $R^*$ throughout; the frozen classifier is Bayes-optimal by construction, so $\Delta^*_{\text{frozen}}$ is zero up to sampling noise. Unequal priors ($\pi_0 = 0.8$): the Bayes threshold moves with $t$, so a classifier frozen at $t \le 0.2$ has a known, nonzero $\Delta^*_{\text{frozen}}(t)$ (``predicted''), which the measured frozen error must match. It does, to within $0.0016$, and the oracle is within $0.0008$ of $R^*$. Fog: $R^*(t) \to 0.5$ as $t\to\infty$, so the corruption destroys information; the generator behind the extrapolation error is estimated from labelled class means and variances (the bracket of Section~\ref{sec:killtest} uses unlabelled samples), and the setting is symmetric, so the frozen side is not exercised. Negative values are finite-sample noise in the evaluation set.}",
          r"\centering\scriptsize\setlength{\tabcolsep}{2pt}",
          r"\resizebox{\linewidth}{!}{",
          r"\begin{tabular}{rrrrrrrrrrrrr}", r"\toprule",
@@ -134,7 +134,7 @@ for seed, rs in dann_rows_by_seed.items():
 
 
 def ms(vals, sign=True):
-    """mean $\\pm$ SD in math mode, so a negative mean gets a real minus sign"""
+    """mean $\\pm$ standard deviation in math mode, so a negative mean gets a real minus sign"""
     if not vals:
         return "---"
     m = st.mean(vals)
@@ -143,14 +143,16 @@ def ms(vals, sign=True):
 
 
 lines = [r"\begin{table}[!htbp]",
-         r"\caption{CIFAR-10, every result of the main run: measured avoidable error $\Delta_X(t)$, mean $\pm$ SD over three seeds; $\dagger$ marks training severities of the frozen model and DANN. TENT and EATA use the original SGD adaptation setting (Section~\ref{sec:tent-sweep}). DANN comes from a separate run, paired with the same-seed oracle of the main run; oracles differ between runs by up to $0.027$, and Section~\ref{sec:dann} compares DANN without the oracle. In the control the Bayes risk is flat, so the oracle's rise there is slack (Section~\ref{sec:oracle}). At fog $t=4$ the oracle is at $0.84$, near chance ($0.9$).}",
+         r"\caption{CIFAR-10, every $\Delta_X(t)$ of the main run (measured avoidable error), mean $\pm$ standard deviation over three seeds; the errors themselves are in \texttt{paper/facts.json} and the result files of the archive; $\dagger$ marks the labelled training severities of the frozen model and DANN (DANN also sees unlabelled images at every test severity). TENT and EATA use the original SGD adaptation setting (Section~\ref{sec:tent-sweep}). DANN comes from a separate run, paired with the same-seed oracle of the main run; oracles differ between runs by up to $0.027$, and Section~\ref{sec:dann} compares DANN without the oracle. In the control the Bayes risk is flat, so the oracle's rise there is slack (Section~\ref{sec:oracle}). At fog $t=4$ the oracle is at $0.84$, near chance ($0.9$).}",
          r"\centering\scriptsize\setlength{\tabcolsep}{2.5pt}",
          r"\begin{tabular}{llrrrrrl}", r"\toprule",
-         r"Family & $t$ & $\Delta_{\text{frozen}}$ & $\Delta_{\text{BN-adapt}}$ & $\Delta_{\text{DANN}}$ & $\Delta_{\text{TENT}}$ & $\Delta_{\text{EATA}}$ & \\", r"\midrule"]
-for k in sorted(oracle_by_key.keys(), key=lambda kk: (kk[0], kk[1])):
+         r"Family & $t$ & $\Delta_{\text{frozen}}$ & $\Delta_{\text{BN-adapt}}$ & $\Delta_{\text{TENT}}$ & $\Delta_{\text{EATA}}$ & $\Delta_{\text{DANN}}$ & \\", r"\midrule"]
+# the family order and column order of Table 13 (noise, heat-equation blur, fog, control; DANN last)
+_fam_order = {"gauss_noise": 0, "blur_heat": 1, "fog_beer_lambert": 2, "gauss_blur": 3}
+for k in sorted(oracle_by_key.keys(), key=lambda kk: (_fam_order[kk[0]], kk[1])):
     fam, t = k
     dagger = r"$\dagger$" if train_flag[k] else ""
-    lines.append(f"{fam_names[fam]} & {_hu(t, 3)} & {ms(d_frozen[k])} & {ms(d_bnadapt[k])} & {ms(d_dann[k])} & {ms(d_tent[k])} & {ms(d_eata[k])} & {dagger} \\\\")
+    lines.append(f"{fam_names[fam]} & {_hu(t, 3)} & {ms(d_frozen[k])} & {ms(d_bnadapt[k])} & {ms(d_tent[k])} & {ms(d_eata[k])} & {ms(d_dann[k])} & {dagger} \\\\")
 lines += [r"\bottomrule", r"\end{tabular}", r"\label{tab:app-cifar}", r"\end{table}"]
 with open(f"{OUT}/cifar_table.tex", "w") as f:
     f.write("\n".join(lines) + "\n")
@@ -163,7 +165,7 @@ for p in sorted(glob.glob(f"{BASE}/oct3/adam-main-s[0-9]/output/cifar10_c_result
     AM += [json.loads(l) for l in open(p)]
 am_names = {"blurfft_s15_a01": "Heat-equation blur", "fog_beer_lambert": "OU fog", "gauss_blur": "Deterministic blur (control)"}
 lines = [r"\begin{table}[!htbp]",
-         r"\caption{The four families rerun with Adam: oracle error and $\Delta_X(t)$, three seeds, mean $\pm$ SD, one run per seed (noise in its own runs); $\dagger$: training severities.}",
+         r"\caption{The four families rerun with Adam: oracle error and $\Delta_X(t)$, three seeds, mean $\pm$ standard deviation, one run per seed (noise in its own runs); $\dagger$: training severities.}",
          r"\centering\scriptsize\setlength{\tabcolsep}{2.5pt}\renewcommand{\arraystretch}{0.85}",
          r"\begin{tabular}{llrrrrrl}", r"\toprule",
          r"Family & $t$ & $\mathrm{Err}_{\text{oracle}}$ & $\Delta_{\text{frozen}}$ & $\Delta_{\text{BN-adapt}}$ & $\Delta_{\text{TENT}}$ & $\Delta_{\text{EATA}}$ & \\", r"\midrule"]
@@ -336,7 +338,7 @@ if "pad_c10" in _facts and "pad_c100" in _facts:
     names = {"zeros": "zero (as trained)", "reflect": "reflect", "circular": "circular", "haze": "haze value",
              "standardize": "standardized at inference"}
     lines = [r"\begin{table}[!htbp]",
-             r"\caption{The 200-epoch joint model in five inference variants of its first layer, all on one fresh draw of the corruption noise, and retrained (``trained'') with reflect padding, GroupNorm, layer normalization or standardized input: gap (drift minus diffusion error at each matched fog pair), three-seed means; a star marks a pair passing the rule of Section~\ref{sec:fog-ablation}. The zero-padding rows differ slightly from Table~\ref{tab:budget} because of that draw.}",
+             r"\caption{The 200-epoch joint model in five inference variants, all on one fresh draw of the corruption noise, and retrained (``trained'') with reflect padding, GroupNorm, layer normalization or standardized input: gap (drift minus diffusion error at each matched fog pair), three-seed means; a star marks a pair passing the rule of Section~\ref{sec:fog-ablation}. The zero-padding rows differ slightly from Table~\ref{tab:budget} because of that draw.}",
              r"\label{tab:padding}",
              r"\centering\scriptsize\setlength{\tabcolsep}{3pt}",
              r"\begin{tabular}{llcccccccc}", r"\toprule",
