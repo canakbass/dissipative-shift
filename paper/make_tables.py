@@ -15,7 +15,7 @@ def _hu(x, nd, sign=False):
     0.01449998 count as halves."""
     r = math.copysign(math.floor(abs(x) * 10 ** nd + 0.5 + HALF_TOL), x) / 10 ** nd
     if r == 0:
-        r = 0.0 * (1 if x >= 0 else -1)
+        return f"{0.0:.{nd}f}"  # a rounded zero carries no sign
     return f"{r:+.{nd}f}" if sign else f"{r:.{nd}f}"
 
 
@@ -39,13 +39,13 @@ kt = {r["t"]: r for r in (json.loads(l) for l in open(f"{BASE}/kill_test_results
 ka = {r["t"]: r for r in (json.loads(l) for l in open(f"{BASE}/kill_test_asym_results.jsonl"))}
 kf = {r["t"]: r for r in (json.loads(l) for l in open(f"{BASE}/kill_test_fog_results.jsonl"))}
 lines = [r"\begin{table}[!htbp]",
-         r"\caption{Sanity checks against closed form. For each check, the Bayes risk $R^*(t)$, the slack of the retrained oracle, $\mathrm{Err}_{\text{oracle}}(t) - R^*(t)$, and the frozen classifier's true avoidable error $\Delta^*(t) = \mathrm{Err}_{\text{frozen}}(t) - R^*(t)$; where a generator is estimated at three low severities, the error of $R^*(t)$ extrapolated from it. Additive noise, equal priors: the hypothesis class (linear) contains the Bayes rule and the oracle is within $0.0043$ of $R^*$ throughout; the frozen classifier is Bayes-optimal by construction, so $\Delta^*$ is zero up to sampling noise. Unequal priors ($\pi_0 = 0.8$): the Bayes threshold moves with $t$, so a classifier frozen at $t \le 0.2$ has a known, non-zero $\Delta^*(t)$ (``predicted''), which the measured frozen error must match. It does, to within $0.0016$, and the oracle is within $0.0008$ of $R^*$. Fog: $R^*(t) \to 0.5$ as $t\to\infty$, so the corruption destroys information; the generator is estimated from sampled class means and variances, and the setting is symmetric, so the frozen side is not exercised. Negative values are finite-sample noise in the evaluation set.}",
+         r"\caption{Sanity checks against closed form. For each check, the Bayes risk $R^*(t)$, the slack of the retrained oracle, $\mathrm{Err}_{\text{oracle}}(t) - R^*(t)$, and the frozen classifier's true avoidable error $\Delta^*_{\text{frozen}}(t) = \mathrm{Err}_{\text{frozen}}(t) - R^*(t)$; where a generator is estimated at three low severities, the error of $R^*(t)$ extrapolated from it. Additive noise, equal priors: the hypothesis class (linear) contains the Bayes rule and the oracle is within $0.0043$ of $R^*$ throughout; the frozen classifier is Bayes-optimal by construction, so $\Delta^*_{\text{frozen}}$ is zero up to sampling noise. Unequal priors ($\pi_0 = 0.8$): the Bayes threshold moves with $t$, so a classifier frozen at $t \le 0.2$ has a known, non-zero $\Delta^*_{\text{frozen}}(t)$ (``predicted''), which the measured frozen error must match. It does, to within $0.0016$, and the oracle is within $0.0008$ of $R^*$. Fog: $R^*(t) \to 0.5$ as $t\to\infty$, so the corruption destroys information; the generator behind the extrapolation error is estimated from labelled class means and variances (the bracket of Section~\ref{sec:killtest} uses unlabelled samples), and the setting is symmetric, so the frozen side is not exercised. Negative values are finite-sample noise in the evaluation set.}",
          r"\centering\scriptsize\setlength{\tabcolsep}{2pt}",
          r"\resizebox{\linewidth}{!}{",
          r"\begin{tabular}{rrrrrrrrrrrrr}", r"\toprule",
          r" & \multicolumn{4}{c}{Additive noise, equal priors} & \multicolumn{4}{c}{Additive noise, unequal priors} & \multicolumn{4}{c}{Ornstein--Uhlenbeck fog} \\",
          r"\cmidrule(lr){2-5}\cmidrule(lr){6-9}\cmidrule(lr){10-13}",
-         r"$t$ & $R^*$ & slack & $\Delta^*$ & extrap.\ err. & $R^*$ & slack & pred.\ $\Delta^*$ & meas.$-$pred. & $R^*$ & slack & $\Delta^*$ & extrap.\ err. \\",
+         r"$t$ & $R^*$ & slack & $\Delta^*_{\text{frozen}}$ & extrap.\ err. & $R^*$ & slack & pred.\ $\Delta^*_{\text{frozen}}$ & meas.$-$pred. & $R^*$ & slack & $\Delta^*_{\text{frozen}}$ & extrap.\ err. \\",
          r"\midrule"]
 for t in sorted(set(kt) | set(ka) | set(kf)):
     c = [f"{_hu(t, 1)}"]
@@ -133,12 +133,13 @@ for seed, rs in dann_rows_by_seed.items():
 
 
 
-def ms(vals):
+def ms(vals, sign=True):
+    """mean $\\pm$ SD in math mode, so a negative mean gets a real minus sign"""
     if not vals:
         return "---"
     m = st.mean(vals)
     s = st.stdev(vals) if len(vals) > 1 else 0.0
-    return f"{_hu(m, 3, True)}$\\pm${_hu(s, 3)}"
+    return f"${_hu(m, 3, sign)}{{\\pm}}{_hu(s, 3)}$"
 
 
 lines = [r"\begin{table}[!htbp]",
@@ -172,13 +173,13 @@ for s_ in (1, 2, 3):
 for t in sorted({r["t"] for r in FX}):
     rs = [r for r in FX if r["t"] == t]
     dagger = r"$\dagger$" if rs[0]["is_train_severity"] else ""
-    cells = [ms([r[k] for r in rs]) for k in ("err_oracle", "delta_frozen", "delta_bnadapt", "delta_tent", "delta_eata")]
+    cells = [ms([r[k] for r in rs], k != "err_oracle") for k in ("err_oracle", "delta_frozen", "delta_bnadapt", "delta_tent", "delta_eata")]
     lines.append(f"Gaussian noise & {_hu(t, 3)} & " + " & ".join(cells) + f" & {dagger} \\\\")
 for fam in ("blurfft_s15_a01", "fog_beer_lambert", "gauss_blur"):
     for t in sorted({r["t"] for r in AM if r["family"] == fam}):
         rs = [r for r in AM if r["family"] == fam and r["t"] == t]
         dagger = r"$\dagger$" if rs[0]["is_train_severity"] else ""
-        cells = [ms([r[k] for r in rs]) for k in ("err_oracle", "delta_frozen", "delta_bnadapt", "delta_tent", "delta_eata")]
+        cells = [ms([r[k] for r in rs], k != "err_oracle") for k in ("err_oracle", "delta_frozen", "delta_bnadapt", "delta_tent", "delta_eata")]
         lines.append(f"{am_names[fam]} & {_hu(t, 3)} & " + " & ".join(cells) + f" & {dagger} \\\\")
 lines += [r"\bottomrule", r"\end{tabular}", r"\label{tab:adam-all}", r"\end{table}"]
 with open(f"{OUT}/adam_table.tex", "w") as f:
@@ -213,9 +214,9 @@ lines = [r"\begin{table}[t]",
          r"\caption{Error removed by BN-adapt, $\mathrm{Err}_{\text{frozen}} - \mathrm{Err}_{\text{BN-adapt}}$, at held-out severities, mean $\pm$ standard deviation over three seeds. The four right columns are a factorial on one periodic Fourier operator, with the noise term ($\sigma_{\text{blur}}$) and the contrast floor ($a_{\min}$) on or off; its last cell, heat-equation blur, is from the main run. The left column, the main run's deterministic blur, is not part of it. Only the noise term changes the Bayes risk.}",
          r"\label{tab:factorial}", r"\centering\footnotesize\setlength{\tabcolsep}{4pt}",
          r"\begin{tabular}{cccccc}", r"\toprule",
-         r" & Reflect-padded, & \multicolumn{3}{c}{Periodic Fourier operator} & Heat-equation \\",
-         r"\cmidrule(lr){3-5}",
-         r"$t$ & sampled kernel & no noise, no floor & floor only & noise only & blur \\", r"\midrule"]
+         r" & Reflect-padded, & \multicolumn{4}{c}{Periodic Fourier operator} \\",
+         r"\cmidrule(lr){3-6}",
+         r"$t$ & sampled kernel & no noise, no floor & floor only & noise only & both (heat-eq.\ blur) \\", r"\midrule"]
 for t in (0.25, 0.5, 1.0, 2.0):
     cells = [removed(MAIN[("gauss_blur", t)])] + \
             [removed([r for r in FBR if r["family"] == fam and r["t"] == t]) for fam in ("blurfft_s0_a0", "blurfft_s0_a01", "blurfft_s15_a0")] + \
@@ -297,7 +298,7 @@ def _jrows(pat):
 
 
 lines = [r"\begin{table}[t]",
-         r"\caption{The joint model at the short budget used elsewhere in the paper (15 epochs, one crop and flip per batch) and at the standard CIFAR budget (200 epochs, per-sample crop and flip), at the fog pairs matched in equivalent variance $v$. Error on the drift and the diffusion member, three-seed means; the two members have the same Bayes risk. ``Clean'' is the model's error on uncorrupted test images, measured only in the 200-epoch run; the joint model sees uncorrupted images in one fifth of its training data, hence higher than for a clean-only model. Last two columns: the 200-epoch model's gap after BN-adapt and TENT (Adam).}",
+         r"\caption{The joint model at the short budget used elsewhere in the paper (15 epochs, one crop and flip per batch) and at the standard CIFAR budget (200 epochs, per-sample crop and flip), at the fog pairs matched in equivalent variance $v$. Error on the drift and the diffusion member, three-seed means; the two members have the same Bayes risk. ``Clean'' is the model's error on uncorrupted test images, measured only in the 200-epoch run; the joint model sees uncorrupted images in one fifth of its training data. Last two columns: the 200-epoch model's gap after BN-adapt and TENT (Adam).}",
          r"\label{tab:budget}", r"\centering\footnotesize\setlength{\tabcolsep}{4pt}",
          r"\begin{tabular}{llcccccccc}", r"\toprule",
          r" & & \multicolumn{3}{c}{15 epochs} & \multicolumn{5}{c}{200 epochs} \\",
@@ -335,7 +336,7 @@ if "pad_c10" in _facts and "pad_c100" in _facts:
     names = {"zeros": "zero (as trained)", "reflect": "reflect", "circular": "circular", "haze": "haze value",
              "standardize": "standardized at inference"}
     lines = [r"\begin{table}[!htbp]",
-             r"\caption{The 200-epoch joint model with five versions of its first layer at inference, all on one fresh draw of the corruption noise, and retrained (``trained'') with reflect padding, GroupNorm, layer normalization or standardized input: gap (drift minus diffusion error at each matched fog pair), three-seed means; a star marks a pair passing the rule of Section~\ref{sec:fog-ablation}. The zero-padding rows differ slightly from Table~\ref{tab:budget} because of that draw.}",
+             r"\caption{The 200-epoch joint model in five inference variants of its first layer, all on one fresh draw of the corruption noise, and retrained (``trained'') with reflect padding, GroupNorm, layer normalization or standardized input: gap (drift minus diffusion error at each matched fog pair), three-seed means; a star marks a pair passing the rule of Section~\ref{sec:fog-ablation}. The zero-padding rows differ slightly from Table~\ref{tab:budget} because of that draw.}",
              r"\label{tab:padding}",
              r"\centering\scriptsize\setlength{\tabcolsep}{3pt}",
              r"\begin{tabular}{llcccccccc}", r"\toprule",
@@ -398,9 +399,9 @@ if "bench" in _facts:
              r"\cmidrule(lr){2-4}\cmidrule(lr){5-7}\cmidrule(lr){8-10}\cmidrule(lr){11-11}",
              "Corruption & " + " & ".join([short[m_] for m_ in ms_] * 3) + f" & {short[ms_[0]]} " + r"\\", r"\midrule"]
     for c_ in ("clean", "contrast", "brightness", "fog", "gaussian_noise"):
-        cells = [f"{B[f'{m_}|{c_}|bnadapt']['err_zeros']:.4f}" for m_ in ms_]
-        cells += [f"${B[f'{m_}|{c_}|bnadapt']['G']:+.4f}$" for m_ in ms_]
-        cells += [f"${B[f'{m_}|{c_}|frozen']['G']:+.4f}$" if f"{m_}|{c_}|frozen" in B else "---" for m_ in ms_]
+        cells = [_hu(B[f'{m_}|{c_}|bnadapt']['err_zeros'], 4) for m_ in ms_]
+        cells += [f"${_hu(B[f'{m_}|{c_}|bnadapt']['G'], 4, True)}$" for m_ in ms_]
+        cells += [f"${_hu(B[f'{m_}|{c_}|frozen']['G'], 4, True)}$" if f"{m_}|{c_}|frozen" in B else "---" for m_ in ms_]
         te = B.get(f"{ms_[0]}|{c_}|tent")
         cells += [f"${_hu(te['G'], 4, True)}$" if te else "---"]
         lines.append(f"{cnames[c_]} & " + " & ".join(cells) + r" \\")

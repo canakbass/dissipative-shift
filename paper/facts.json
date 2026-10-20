@@ -1811,6 +1811,8 @@
    ]
   }
  },
+ "blur_first_singular_t": 1.385782334848989,
+ "blur_grid_min_sv": 2.575711218609546e-06,
  "blur_heat_t2_bn_removes": 0.039166647275288846,
  "blur_heat_t2_frozen": 0.7869999806086222,
  "blur_heat_t2_oracle": 0.5386000076929728,
@@ -2668,6 +2670,7 @@
   "joint200_std"
  ],
  "clean_oracle_mean": 0.12117499796052775,
+ "control_comparisons": 18,
  "control_inversion_list": [
   [
    1,
@@ -2694,6 +2697,7 @@
    -0.00599999725818634
   ]
  ],
+ "control_inversion_max": 0.02019999921321869,
  "control_inversions": 4,
  "control_inversions_heldout": [
   [

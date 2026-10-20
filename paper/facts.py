@@ -119,6 +119,8 @@ for s in (1, 2, 3):
 F["control_inversions"] = inv_all
 F["control_inversions_heldout"] = inv_held
 F["control_inversion_list"] = inv_list
+F["control_comparisons"] = 3 * (len(ts) - 1)  # (seed, adjacent-severity) pairs of the control oracle
+F["control_inversion_max"] = -min(d for *_, d in inv_list)
 F["control_t0_seeds"] = [R[("gauss_blur", 0.0)][s]["err_oracle"] for s in (1, 2, 3)]
 
 # ------------------------------------------------------------------ fog = noise
@@ -358,6 +360,16 @@ for t in (0.25, 0.5, 1.0, 2.0):
     sv = np.linalg.svd(blur_matrix(t), compute_uv=False)
     op[t] = dict(min_sv_2d=float(sv.min() ** 2), cond_2d=float((sv.max() / sv.min()) ** 2))
 F["blur_operator"] = op
+# the truncated kernel's transfer function changes sign as t grows, so the (symmetric) operator is
+# singular at isolated severities; the first lies between our grid points 1 and 2
+from scipy.optimize import brentq
+_det = lambda t: np.linalg.det(blur_matrix(t))
+_tg = np.linspace(1.0, 2.0, 201)
+_sg = [np.sign(_det(t)) for t in _tg]
+_k = next(i for i in range(len(_tg) - 1) if _sg[i] != _sg[i + 1])
+F["blur_first_singular_t"] = float(brentq(_det, _tg[_k], _tg[_k + 1]))
+F["blur_grid_min_sv"] = float(min(np.linalg.svd(blur_matrix(t), compute_uv=False).min()
+                                  for t in (0.05, 0.1, 0.25, 0.5, 1.0, 2.0)))
 comp = {}
 for t, s2 in ((0.05, 0.05), (0.1, 0.15), (0.25, 0.25), (0.5, 0.5)):
     Dm = blur_matrix(t) @ blur_matrix(s2) - blur_matrix(t + s2)
