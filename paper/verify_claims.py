@@ -283,17 +283,17 @@ _V0 = {f"{q['v']:.3f}": q for q in F("fjf_pairs")}
 _V1 = {f"{q['v']:.3f}": q for q in F("fjr_pairs")}
 _V1a = {f"{q['v']:.3f}": q for q in F("fjr_adapt")}
 _hd = [_V[k]["d_raw_mean"] for _V in (_V0, _V1) for k in _outer2]
-for lab, tpl in (("abstract", "batch-normalized ResNet-18 models err\n$@$ to $@$ more on the lower-contrast member at the two pairs farthest beyond\ntheir training range"),
+for lab, tpl in (("abstract", "without per-image standardization err\n$@$ to $@$ more on the lower-contrast member at the two pairs farthest beyond\ntheir training range"),
                  ("contribution", "standardization (reflect or zero padding) err $@$ to $@$ more on the\nlower-contrast member at the two pairs farthest beyond their training range"),
                  ("conclusion", "standardization err\n$@$ to $@$ more on the lower-contrast member of the most extrapolated\nequal-information fog pairs")):
     check(f"headline range ({lab})", tpl, min(_hd), max(_hd))
 word("abstract: the drift member is the lower-contrast one and errs more", "more on the lower-contrast member",
      all(F("matched_contrast")[k]["drift"] < F("matched_contrast")[k]["diffuse"] and _V[k]["d_raw_mean"] > 0 for _V in (_V0, _V1) for k in _outer2))
-word("abstract: the lower-contrast member costs more error", "models err\n$0.07$ to $0.09$ more on the lower-contrast member",
+word("abstract: the lower-contrast member costs more error", "standardization err\n$0.07$ to $0.09$ more on the lower-contrast member",
      all(F("matched_contrast")[k]["drift"] < F("matched_contrast")[k]["diffuse"] and _V[k]["d_raw_mean"] > 0 for _V in (_V0, _V1) for k in _outer2))
 word("headline: the two most extrapolated pairs, every seed", "farthest beyond their\ntraining range (the most extrapolated pairs; seed means, positive in each seed)",
      len(_outer2) == 2 and all(_V[k]["positive"] and min(_V[k]["d_raw"]) > 0 for _V in (_V0, _V1) for k in _outer2))
-word("abstract: two padding models behind the headline", "frozen 200-epoch batch-normalized ResNet-18 models err",
+word("abstract: two padding models behind the headline", "frozen\n200-epoch batch-normalized ResNet-18 models without per-image standardization err",
      len(_hd) == 4 and set(_V0) >= set(_outer2) and set(_V1) >= set(_outer2))
 _every_seed = len(_outer2) == 2 and all(_V[k]["positive"] and min(_V[k]["d_raw"]) > 0 for _V in (_V0, _V1) for k in _outer2)
 for _where, _tpl in (("abstract", "(seed means, positive in each seed); with GroupNorm or layer\nnormalization the gap stays below"),
@@ -341,10 +341,11 @@ _outer3 = [k for k in _V1 if float(k) > 0.05]
 _npos = {k: sum(_N[k][v]["positive"] for v in _outer3) for k in _N}
 _norm_max = max(abs(q["d_raw_mean"]) for k in _N for q in _N[k].values())
 check("inference padding lowers the gap", "changing the padding\nonly at inference gives $@$ to $@$", *F("pad_c10_commuting_outer"))
-check("normalization: outer gaps", "the gaps at the outer pairs stay below $@$ in seed means (not of one sign across\nseeds)",
+check("normalization: outer gaps", "the gaps at the outer pairs stay below $@$ in seed means (of mixed sign across\nseeds at four of the six)",
       max(abs(_N[k][v]["d_raw_mean"]) for k in ("fjgn", "fjln") for v in _outer3), rnd="up")
-word("normalization: outer gaps change sign across seeds", "(not of one sign across\nseeds), $4.3$",
-     any(min(_N[k][v]["d_raw"]) < 0 < max(_N[k][v]["d_raw"]) for k in ("fjgn", "fjln") for v in _outer3))
+_mixed = [min(_N[k][v]["d_raw"]) < 0 < max(_N[k][v]["d_raw"]) for k in ("fjgn", "fjln") for v in _outer3]
+word("normalization: outer gaps of mixed sign at four of six", "(of mixed sign across\nseeds at four of the six)",
+     sum(_mixed) == 4 and len(_mixed) == 6)
 word("normalization: none and one", "GroupNorm passed at no outer pair and layer normalization at one", (_npos["fjgn"], _npos["fjln"]) == (0, 1))
 _ratio = [_V0[k]["d_raw_mean"] / _N[n_][k]["d_raw_mean"] for n_ in ("fjgn", "fjln") for k in _outer2]
 # the GroupNorm and layer-normalization models are the zero-padded joint model with its normalization replaced
@@ -356,6 +357,8 @@ check("normalization: clean errors", "at a cost in clean error\n($@$ and $@$)", 
 check("standardized: clean error", "that it also costs no clean error ($@$,\nagainst $@$) is an empirical finding", F("fjstd_clean_err")[0], F("fjf_clean_err")[0])
 # the standardized-input model was trained with zero padding, and per-image standardization at inference also
 # leaves no pair passing with every padding, so the no-gap result does not depend on the padding
+word("abstract: the scope excludes per-image standardization", "models without per-image standardization err",
+     _npos["fjstd"] == 0 and all(abs(q["d_raw_mean"]) < 0.01 for q in _N["fjstd"].values()))
 word("standardized: with any padding", "With any padding, a model trained on images standardized one by one",
      _npos["fjstd"] == 0 and not any(p for key in ("frozen", "bnadapt") for p in [q["positive"] for q in _P10["standardize"][key].values()]))
 word("standardized: no gap, no cost", "sees identically\ndistributed members and has no gap",
@@ -367,17 +370,18 @@ check("checks: BN-adapt closes", "absorb scale\nand offset and close the gap (to
 word("checks: BN-adapt closes (condition)", "and close the gap (to within", _v1_bn_clean
      and not any(_P[k]["bnadapt"][q]["positive"] for _P in (_P10, _P100) for k in ("reflect", "circular", "haze") for q in _pv))
 check("V1: keeps the gap", "at these pairs, by $@$ and $@$; as our rule required", *[_V1[k]["d_raw_mean"] for k in _outer2])
-word("rules: V1 is the main number", "main number moved to this model, as fixed in advance",
+word("rules: V1 is the main number", "Frozen: $2$ of $3$ outer pairs pass, so the gap is not a zero-padding artifact; BN-adapt: no pair passes; main numbers moved here, as fixed in advance",
      "the paper's main number moves to V1's difference" in src("rules/2026-10-05_retraining_and_normalization.md").replace("\n", " "))
 word("V1 is the main number, as the rule fixed", "as our rule required, these are\nthe main numbers, with the zero-padded values beside them",
      "the paper's main number moves to V1's difference" in src("rules/2026-10-05_retraining_and_normalization.md").replace("\n", " ") and _every_seed)
 _ps_max = max(abs(_N[n_][v]["d_raw_mean"]) for n_ in ("fjgn", "fjln") for v in _outer3)
 check("abstract: GN/LN below 0.02", "normalization the gap stays below $@$", _ps_max, rnd="up")
 check("contribution: GroupNorm/layer norm keep the gap below", "or layer normalization this gap stays below $@$ in seed means", _ps_max, rnd="up")
-word("contribution: the outcome was mixed", "an outcome our pre-specified\nrule calls mixed because layer normalization passes it at one pair", (_npos["fjgn"], _npos["fjln"]) == (0, 1))
+word("contribution: the outcome was mixed", "our pre-specified rule calls\nthe result mixed because with layer normalization one outer pair still passes", (_npos["fjgn"], _npos["fjln"]) == (0, 1))
 # the discussion's restatements of the 7.7, 2.1 and 0.07-0.09 results were cut for space (review 17)
 # "about fivefold" left the discussion (review 18): the ratio depends on which BN model is the base
-word("discussion: the artifact did not appear on CIFAR-10-C", "On CIFAR-10-C the\nzero-padding artifact did not appear", set(F("bench_verdict").values()) == {"rejected"})
+check("discussion: CIFAR-10-C cells", "help BN-adapt ($@$ of $@$ cells; Appendix", F("bench_cells_helped"), F("bench_cells_helped") + F("bench_cells_hurt"))
+word("discussion: the artifact did not appear on CIFAR-10-C", "On CIFAR-10-C,\nreflect padding did not help BN-adapt", set(F("bench_verdict").values()) == {"rejected"})
 word("most depends on BN, does not need zero padding", "Replacing batch normalization shrinks most of the gap, and retraining with reflect\npadding does not",
      sum(_V1[k]["positive"] for k in _outer3) >= 2 and _npos["fjgn"] <= 1 and _npos["fjln"] <= 1
      and mean([_V1[k]["d_raw_mean"] for k in _outer2]) > 0.9 * mean([_V0[k]["d_raw_mean"] for k in _outer2]))
@@ -448,8 +452,8 @@ check("bench caption: SE range", "gains lie between @ and @", min(_bse), max(_bs
 word("bench caption: every corrupted gain beyond 3 SE", "every BN-adapt gain under a corruption exceeds three times its standard error",
      all(abs(_B[f"{m_}|{c_}|bnadapt"]["G"]) > 3 * _B[f"{m_}|{c_}|bnadapt"]["SE"] for m_ in _BM for c_ in ("contrast", "brightness", "fog", "gaussian_noise")))
 word("bench: three models", "Three standard pretrained CIFAR-10 models", len(_BM) == 3, cls="design")
-check("5.4: CIFAR-10-C cells helped", "helped BN-adapt\nin only $@$ of $@$ cells", F("bench_cells_helped"), len(_bh))
-word("bench: hypothesis rejected (Section 5.4)", "On CIFAR-10-C, reflect padding at inference helped BN-adapt\nin only", set(F("bench_verdict").values()) == {"rejected"})
+# (review 19) the Section 5.4 pointer to CIFAR-10-C repeated the discussion and was cut
+# (review 19) the Section 5.4 pointer to CIFAR-10-C repeated the discussion and was cut
 check("appendix F.1: padding residual", "leaves a gap of up to $@$ after BN-adapt and TENT", max(max(r["bn_gap"], r["tent_gap"]) for r in F("fjf_adapt")), rnd="up")
 design("discussion: haze point", "haze\npoint ($A = @$) is far from it", const(BN_SCRIPT, r"^        A = ([\d.]+)$"))
 # the discussion paragraph with the cell counts and the clean-image cost moved to Appendix F.1 (review 17);
@@ -619,9 +623,9 @@ word("discussion: zero padding opened a gap", "with zero padding BN-adapt itself
      all(r["bn_gap"] > 0.05 for r in F("fjf_adapt")))
 check("blur pair decomposition", "avoidable gap $\\Delta_{\\text{frozen}}$ is $@$ times larger under deterministic blur\n($@$ against $@$), and BN-adapt recovers $@\\%$ of that gap under\ndeterministic blur but only $@\\%$ under heat-equation blur, a factor of $@$",
       _gd / _gh, _gd, _gh, 100 * _fd, 100 * _fh, _fd / _fh)
-check("abstract: blur ratio", "statistics removes $@$ times\nas much error from the invertible one", F("blur_ratio_bn"))
-check("abstract: blur factor split", "a factor of $@$ of it in avoidable error\nagainst a classifier retrained at each severity", _gd / _gh)
-word("abstract: only part of the factor lies in the avoidable error", "of it in avoidable error\nagainst a classifier retrained",
+check("abstract: blur ratio", "statistics removes $@$ times\nas much error from the noise-free one", F("blur_ratio_bn"))
+check("abstract: blur factor split", "measured against a classifier retrained at\neach severity, a reference loose on images and so recipe-relative, its avoidable\nerror is $@$ times larger", _gd / _gh)
+word("abstract: only part of the factor lies in the avoidable error", "its avoidable\nerror is $2.1$ times larger",
      1 < _gd / _gh < F("blur_ratio_bn"))
 check("contribution: blur factor split", "this ratio is a $@$-fold larger avoidable gap times a $@$-fold larger\nfraction of that gap recovered", _gd / _gh, _fd / _fh)
 check("conclusion: blur factor split", "and a $@$-fold one in\noracle-measured avoidable error", _gd / _gh)
@@ -932,7 +936,7 @@ check("discussion matched", "noise at $t_{\\text{noise}} = @$ have\nconsistent o
 check("discussion horizons", "(the fog point is $@$ times its training range in\nequivalent-noise terms, the noise point $@$ times)", mf["horizon"], mn["horizon"])
 
 # =========================================================================== limitations, conclusion
-check("limitations clean error", "the other three-seed experiments used @ (clean error\n$\\approx @$)", const(BN_SCRIPT, r"^EPOCHS = (\d+)"), F("clean_oracle_mean"))
+check("limitations clean error", "the other three-seed experiments used @ (CIFAR-10 clean\nerror $\\approx @$)", const(BN_SCRIPT, r"^EPOCHS = (\d+)"), F("clean_oracle_mean"))
 check("conclusion ratio", "this hides a\n$@$-fold difference", F("blur_ratio_bn"))
 # =========================================================================== structure: references to log items
 _items = re.findall(r"\\item (?:\\label\{([^}]*)\})?\\textbf\{([^}]*)\}", BODY[BODY.find(r"\label{app:corrections}"):])
@@ -1108,7 +1112,7 @@ for fam, name in [("gauss_noise", "Gaussian noise"), ("blur_heat", "Heat-equatio
     t_tab = [float(l.split("&")[1]) for l in rows_]
     d_tab = [float(l.split("&")[1]) for l in rows_ if "dagger" in l]
     _grid_ok &= t_tab == ts and d_tab == tr_
-word("Table 16: DANN sees unlabelled test-severity images", "(DANN also sees unlabelled images at every test severity)",
+word("Table 16: DANN sees unlabelled test-severity images", "(each DANN model also sees unlabelled images at its target severity)",
      "Target (unlabeled): the same x_train_raw pool corrupted at the test" in src("kaggle_cifar10_c_dann/cifar10_c_dann_kaggle.py"), cls="design")
 word("grids in the full table", "lists every $\\Delta_X(t)$ of the main run;", _grid_ok, cls="design")
 
@@ -1133,8 +1137,9 @@ check("synthetic coverage", "Over $@$ replications the true\n$R^*(t)$ lies insid
 check("sanity cert summary", "a joint $@\\%$ bootstrap rectangle, the bracket contains\nthe true $R^*(t)$ at all six held-out severities in $@$ of $@$ runs",
       100 * (1 - const(CE_SRC, r"^ALPHA = ([\d.]+)")), ce["fog_check"]["coverage_simultaneous"] * ce["n_rep"], ce["n_rep"])
 word("six held-out severities", "at all six held-out severities at once", len(ce["fog_check"]["test_ts"]) == 6)
-check("synthetic slope", "grows by $@$ per unit of $t$ between $t = 10$ and $t = 20$,\nwhich is $2(a_{\\text{hi}} - a_{\\text{lo}})$ averaged over replications ($@$)",
-      ce["fog_check"]["slope_last"], ce["fog_check"]["two_mean_delta_a"])
+check("synthetic slope", "grows by $@$ per unit of $t$ between $t = 10$ and $t = 20$", ce["fog_check"]["slope_last"])
+word("synthetic slope equals 2(a_hi - a_lo)", "which is $2(a_{\\text{hi}} - a_{\\text{lo}})$ averaged over replications",
+     round(ce["fog_check"]["slope_last"], 3) == round(ce["fog_check"]["two_mean_delta_a"], 3))
 word("slope over 10..20", "between $t = 10$ and $t = 20$", ce["fog_check"]["test_ts"][-2:] == [10.0, 20.0])
 check("analogue coverage", "the simultaneous coverage is $@\\%$ and $@\\%$",
       100 * ce["drift"]["coverage_simultaneous"], 100 * ce["diffusion"]["coverage_simultaneous"])
@@ -1190,10 +1195,10 @@ noted("joint model added after the first results", "We added\nthe joint model af
 _fj = sorted(F("fj_pairs"), key=lambda r: r["v"])
 _fcp = sorted(F("fc_pairs"), key=lambda r: r["v"])
 _jpos = [r for r in _fj if r["positive"]]
-check("rules: 200-epoch rule after the 15-epoch result", "after the 15-epoch joint results ($@$ of $@$ pairs on CIFAR-10, $4$ of $4$ on CIFAR-100) were known", len(_jpos), len(_fj))
+check("rules: 200-epoch rule after the 15-epoch result", "after the 15-epoch joint results (verified gaps at $@$ of $@$ pairs on CIFAR-10, $4$ of $4$ on CIFAR-100) were known", len(_jpos), len(_fj))
 noted("rules: 200-epoch rule written after the 15-epoch results", "Before its run, after the 15-epoch joint results",
       "file times: the rule was written on 3 October at 17:30, the 15-epoch joint results came out at 10:07-10:46")
-check("200-epoch run added after the 15-epoch result", "after the 15-epoch joint results ($@$ of $@$ pairs on CIFAR-10", len(_jpos), len(_fj))
+check("200-epoch run added after the 15-epoch result", "after the 15-epoch joint results (verified gaps at $@$ of $@$ pairs on\nCIFAR-10", len(_jpos), len(_fj))
 check("separate models gap", "show a\nverified gap at all four pairs ($@$ to $@$; Table",
       min(r["matched"]["d_raw_mean"] for r in _fcp), max(r["matched"]["d_raw_mean"] for r in _fcp))
 word("separate: all four, every seed", "verified gap at all four pairs", F("fc_matched_npos") == 4
@@ -1205,7 +1210,7 @@ check("clean model at chance (text)", "at chance at every pair ($@$ to $@$ error
 word("clean model: nominal pass at one pair, both at chance", "nominally\npasses at one pair, with both members at chance",
      F("fc_clean_npos") == 1 and all(min(r["clean"]["err_drift"], r["clean"]["err_diffuse"]) > 0.85 for r in F("fc_pairs")))
 word("200-epoch run as main result fixed in advance", "the choice to report the 200-epoch run as the main result, was\nfixed before its run",
-     "main numbers moved to this run, as fixed in advance" in BODY)
+     "main numbers moved here, as fixed in advance" in BODY)
 word("sampling floor: joint model, or the clean model for separate models", "measured with the joint model, or the clean-only model for\nseparate models",
      '("fog_drift", td, "clean", s)]["err_frozen_inv"]' in src("paper/facts.py") and 'jb[("fog_drift", td, s)]["err_frozen_inv"]' in src("paper/facts.py"), cls="design")
 check("matched training range", "up to $v = @$ (drift severities up to\n$@$, diffusion up to $@$)", _fcp[0]["v"], _fcp[0]["t_drift"], _fcp[0]["t_diffuse"])
@@ -1261,10 +1266,10 @@ design("limitations full budget", "its variants used @ epochs", const("kaggle_oc
 _ff = sorted(F("fjf_pairs"), key=lambda r: r["v"])
 _head = [r["d_raw_mean"] for r in _ff if r["v"] > 0.15]
 _wl2 = F("wiener_lfl")["2.0"]["cert_slack"]
-check("limitations: slack ranges", "has certified lower bounds, up to\n$@$ per certificate in fog and noise, $@$ for the periodic blur", F("cert_all_max"),
+check("limitations: slack ranges", "certified lower bounds for stored data, up to\n$@$ per certificate in fog and noise and $@$ for the periodic blur", F("cert_all_max"),
       max(WL["2.0"]["cert_slack_joint"]), rnd="down")
 _f100 = {f"{q['v']:.3f}": q for q in F("fjf100_pairs")}
-word("abstract: both comparisons replicate on CIFAR-100", "The fog gap and the blur ratio hold in direction on CIFAR-100.",
+word("abstract: both comparisons replicate on CIFAR-100", "The fog gap and blur ratio hold in direction on\nCIFAR-100.",
      F("c100_blur_ratio_bn") > 2 and all(_f100[k]["positive"] and min(_f100[k]["d_raw"]) > 0 for k in _outer2))
 check("sqrt(d) for CIFAR", "about $@$ for $@\\times@$ colour images", math.sqrt(3 * 32 * 32), 32, 32)
 check("bootstrap level", "has asymptotic, not exact, probability $@\\%$", 100 * (1 - const("certified_extrapolation.py", r"^ALPHA = ([\d.]+)")))
@@ -1352,7 +1357,7 @@ word("limitations: in-range gap pattern", "the verified gap appears only beyond 
      not _fj15[0]["positive"] and not sorted(F("fjf_pairs"), key=lambda r: r["v"])[0]["positive"]
      and not sorted(F("fjf100_pairs"), key=lambda r: r["v"])[0]["positive"] and _fj100[0]["positive"]
      and all(r["positive"] for r in sorted(F("fjf_pairs"), key=lambda r: r["v"])[1:] if r["v"] > 0.1) and F("fc_matched_npos") == 4)
-check("rules: clean nominal", "Clean-only model: nominally at $@$ of $@$ pairs", F("fc_clean_npos"), len(F("fc_pairs")))
+check("rules: clean nominal", "Clean-only model: nominally passes at $@$ of $@$ pairs", F("fc_clean_npos"), len(F("fc_pairs")))
 check("rules: separate", "Separate models: $@$ of $@$ \\\\", F("fc_matched_npos"), len(F("fc_pairs")))
 check("rules: joint 15", "$@$ of $@$ pairs on CIFAR-10, $@$ of $@$ on CIFAR-100", F("fj_pairs_npos"), len(_fj15), F("fj100_pairs_npos"), len(_fj100))
 check("rules: joint 200", "$@$ of $@$ pairs on CIFAR-10 and on CIFAR-100", F("fjf_pairs_npos"), len(_ff))
@@ -1498,7 +1503,7 @@ _fact_plan = "**blur-factorial.**" in src("rules/2026-10-02_matched_fog_pairs.md
 word("rules caption: factorial and Adam reruns had a reporting plan", "The blur factorial and the Adam reruns had a reporting plan but no decision rule",
      _fact_plan and "**adam-main.**" in src("rules/2026-10-02_matched_fog_pairs.md"))
 # the list of tests with pre-specified rules left the limitations for a pointer to Table 7 (review 18)
-word("limitations: Table 7 lists the pre-specified tests", "lists the pre-specified tests", bool(re.search(r"CIFAR-10-C", _table_rows("tab:rules"))))
+word("limitations: Table 7 lists the pre-specified tests", "list the pre-specified tests and\nrules", bool(re.search(r"CIFAR-10-C", _table_rows("tab:rules"))))
 word("factorial is exploratory (no rule in Appendix A)", "In an exploratory $2\\times2$ factorial on the periodic Fourier operator", _unruled)
 word("factorial: no rule fixed in advance", "no rule fixed in advance; Table~\\ref{tab:factorial}", _unruled)
 word("CIFAR-100 blur pair is exploratory (no rule in Appendix A)", "This exploratory run had no rule.", _unruled)
@@ -1512,7 +1517,7 @@ word("control bound is conditional on a flat Bayes risk", "if the reflect-padded
 word("Tiny-ImageNet: direction only", "so this replicates only the direction.",
      all(r["seeds"] == [1] for r in _tin) and all(r["d_raw_mean"] > 0 for r in _tin[:2]))
 word("CIFAR-10-C: the explanation is untested", "One untested explanation is that CIFAR-10-C's contrast\ncorruption", set(F("bench_verdict").values()) == {"rejected"})
-word("slack certified for the data as stored", "for\nstored data, but no upper bound", WL["2.0"]["f32_cost"] > 0 and min(WL["2.0"]["cert_slack_joint"]) > 0)
+word("slack certified for the data as stored", "certified lower bounds for stored data", WL["2.0"]["f32_cost"] > 0 and min(WL["2.0"]["cert_slack_joint"]) > 0)
 # =========================================================================== severity values
 SEVERITIES = set()
 for path in ["kill_test_results.jsonl", "kill_test_asym_results.jsonl", "kill_test_fog_results.jsonl"]:
