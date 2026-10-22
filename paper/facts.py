@@ -1032,6 +1032,102 @@ if os.path.exists(_bp):
                              max(bench[f"{m_}|clean|bnadapt"]["err_reflect"] - bench[f"{m_}|clean|bnadapt"]["err_zeros"] for m_ in _bm)]
 
 
+# ------------------------------------------------------------------ 21 October: pretrained ImageNet fog pairs and the
+# single-model blur pair (oct21/PLAN.md). The rule of oct21/summarize.py, re-applied with the same definitions; the
+# verifier compares the result with that script's output.
+IM_BN = ["resnet50_v1", "resnet50_v2", "efficientnet_b0"]
+IM_LN = ["vit_b_16", "convnext_tiny", "swin_t"]
+IM_V = [0.0025, 0.005, 0.01, 0.021, 0.042, 0.089]
+_IM_DIR = {"resnet50_v1": "resnet50-v1", "resnet50_v2": "resnet50-v2", "efficientnet_b0": "efficientnet-b0",
+           "vit_b_16": "vit-b-16", "convnext_tiny": "convnext-tiny", "swin_t": "swin-t"}
+
+
+def _imnet(run):
+    out = {}
+    for m_ in IM_BN + IM_LN:
+        path = f"oct21/imnet-fog-{_IM_DIR[m_]}{'-r2' if run == 'r2' else ''}/output/imnet_fog_{m_}.jsonl"
+        if not os.path.exists(os.path.join(BASE, path)):
+            continue
+        rows = [r for r in load(path)]
+        clean_ = [r for r in rows if r["family"] == "clean"][0]
+        Rr = {(r["family"], r["v"], r["seed"]): r for r in rows if r["family"] != "clean"}
+        seeds = sorted({s_ for _, _, s_ in Rr})
+        pairs = []
+        for v in IM_V:
+            raw = [Rr[("drift", v, s_)]["err"] - Rr[("diffuse", v, s_)]["err"] for s_ in seeds]
+            inv = [Rr[("drift", v, s_)]["err_inv"] - Rr[("diffuse", v, s_)]["err_inv"] for s_ in seeds]
+            e_d = mean([Rr[("drift", v, s_)]["err"] for s_ in seeds])
+            e_D = mean([Rr[("diffuse", v, s_)]["err"] for s_ in seeds])
+            informative = all(e < 0.95 and e > clean_["err"] + 0.01 for e in (e_d, e_D))
+            verified = len(seeds) == 3 and (all(x > 0 for x in raw) or all(x < 0 for x in raw)) \
+                and all(abs(a_) > abs(b_) for a_, b_ in zip(raw, inv)) and abs(mean(raw)) > sd(raw)
+            bn_ = None
+            if clean_.get("err_bnadapt") is not None:
+                bn_ = mean([Rr[("drift", v, s_)]["err_bnadapt"] - Rr[("diffuse", v, s_)]["err_bnadapt"] for s_ in seeds])
+            pairs.append(dict(v=v, err_drift=e_d, err_diffuse=e_D, gap=mean(raw), gaps=raw, sd=sd(raw),
+                              floor=max(abs(x) for x in inv), informative=informative, verified=verified,
+                              positive=verified and mean(raw) > 0, negative=verified and mean(raw) < 0, bn_gap=bn_,
+                              err_drift_inv=mean([Rr[("drift", v, s_)]["err_inv"] for s_ in seeds])))
+        out[m_] = dict(clean=clean_["err"], clean_bnadapt=clean_.get("err_bnadapt"), seeds=seeds, pairs=pairs)
+    return out
+
+
+IMF, IMR = _imnet("first"), _imnet("r2")
+F["imnet_first"], F["imnet_r2"] = IMF, IMR
+_npos_im = {m_: sum(p["positive"] for p in IMF[m_]["pairs"] if p["informative"]) for m_ in IMF}
+F["imnet_npos"] = _npos_im
+F["imnet_n_informative"] = {m_: sum(p["informative"] for p in IMF[m_]["pairs"]) for m_ in IMF}
+_h1 = sum(_npos_im[m_] >= 2 for m_ in IM_BN) >= 2
+_half = {}
+for m_ in IM_LN:
+    vs_ = sorted(p["v"] for p in IMF[m_]["pairs"] if p["informative"])[-2:]
+    ok_ = True
+    for v in vs_:
+        g_ln = [p["gap"] for p in IMF[m_]["pairs"] if p["v"] == v][0]
+        g_bn = [p["gap"] for b_ in IM_BN for p in IMF[b_]["pairs"] if p["v"] == v]
+        ok_ = ok_ and bool(g_bn) and g_ln < 0.5 * mean(g_bn)
+    _half[m_] = ok_
+_h2 = not [m_ for m_ in IM_LN if _npos_im[m_] >= 2] and all(_half.values())
+F["imnet_H1"], F["imnet_H2"] = _h1, _h2
+F["imnet_outcome"] = ("does not transfer to pretrained ImageNet models" if not _h1 else
+                      "transfers at scale, specific to batch normalization" if _h2 else
+                      "transfers at scale, not specific to batch normalization")
+F["imnet_negative"] = {m_: [p["v"] for p in IMF[m_]["pairs"] if p["negative"] and p["informative"]] for m_ in IMF}
+# the reruns with shuffled batches (BN models): largest change of a frozen gap, and BN-adapt gaps
+F["imnet_r2_max_gap_change"] = max(abs(p["gap"] - q["gap"]) for m_ in IMR for p, q in zip(IMF[m_]["pairs"], IMR[m_]["pairs"]))
+F["imnet_r2_same_decision"] = all((p["positive"], p["negative"]) == (q["positive"], q["negative"])
+                                  for m_ in IMR for p, q in zip(IMF[m_]["pairs"], IMR[m_]["pairs"]))
+# mapping the drift member back with the known L_t^{-1}: its error against the diffusion member's, informative pairs
+F["imnet_inv_restore_max"] = max(abs(p["err_drift_inv"] - p["err_diffuse"]) for m_ in IMF for p in IMF[m_]["pairs"]
+                                 if p["informative"])
+# BN-adapt (rerun with shuffled batches): small v, EfficientNet-B0 at every v, and the ResNet-50s at v = 0.042
+F["imnet_bn_small_v_max"] = max(abs(p["bn_gap"]) for m_ in IMR for p in IMR[m_]["pairs"] if p["v"] <= 0.005)
+F["imnet_bn_effnet_max"] = max(abs(p["bn_gap"]) for p in IMR["efficientnet_b0"]["pairs"])
+F["imnet_bn_resnet_042"] = sorted([p["bn_gap"] for m_ in ("resnet50_v1", "resnet50_v2") for p in IMR[m_]["pairs"] if p["v"] == 0.042])
+F["imnet_gap_042"] = {m_: [p["gap"] for p in IMF[m_]["pairs"] if p["v"] == 0.042][0] for m_ in IMF}
+
+# single-model blur pair (frozen model trained on both blurs)
+_BJ = []
+for _f in sorted(_glob.glob(os.path.join(BASE, "oct21/blur-joint-s*/output/*.jsonl"))):
+    _BJ += [json.loads(l) for l in open(_f) if l.strip()]
+_RB = {(r["family"], r["t"], r["seed"]): r for r in _BJ}
+_bjs = sorted({s_ for _, _, s_ in _RB})
+_rem = lambda f_, s_: _RB[(f_, 2.0, s_)]["err_frozen"] - _RB[(f_, 2.0, s_)]["err_bnadapt"]
+_det, _heat = "gauss_blur", "blurfft_s15_a01"
+_ratios = [_rem(_det, s_) / _rem(_heat, s_) for s_ in _bjs]
+_rmean = mean([_rem(_det, s_) for s_ in _bjs]) / mean([_rem(_heat, s_) for s_ in _bjs])
+_fz = lambda f_: mean([_RB[(f_, 2.0, s_)]["err_frozen"] for s_ in _bjs])
+_orc = lambda f_: mean([_RB[(f_, 2.0, s_)]["err_oracle"] for s_ in _bjs])
+_gapb = lambda f_: _fz(f_) - _orc(f_)
+_recb = lambda f_: 1 - (mean([_RB[(f_, 2.0, s_)]["err_bnadapt"] for s_ in _bjs]) - _orc(f_)) / _gapb(f_)
+F["blur_joint"] = dict(seeds=_bjs, ratio_per_seed=_ratios, ratio_of_means=_rmean,
+                       outcome=("replicates" if len(_bjs) == 3 and all(x > 1 for x in _ratios) and _rmean >= 2 else
+                                "weakens" if len(_bjs) == 3 and all(x > 1 for x in _ratios) else "does not replicate"),
+                       frozen_det=_fz(_det), frozen_heat=_fz(_heat), oracle_det=_orc(_det), oracle_heat=_orc(_heat),
+                       gap_ratio=_gapb(_det) / _gapb(_heat), recovered_det=_recb(_det), recovered_heat=_recb(_heat),
+                       recovered_ratio=_recb(_det) / _recb(_heat))
+
+
 out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "facts.json")
 json.dump(clean(F), open(out, "w"), indent=1, sort_keys=True)
 print(f"{len(F)} top-level facts written to {out}")

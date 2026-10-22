@@ -1,0 +1,13 @@
+{
+  "id": "account3/blur-joint-s3",
+  "title": "blur-joint-s3",
+  "code_file": "runner.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "dataset_sources": [],
+  "competition_sources": [],
+  "kernel_sources": []
+}

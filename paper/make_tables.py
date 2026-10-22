@@ -412,6 +412,38 @@ if "bench" in _facts:
         f.write("\n".join(lines) + "\n")
     print("bench_table.tex written")
 
+# ---------------- pretrained ImageNet classifiers on matched fog pairs (oct21) ----------------
+_IMF, _IMR = _facts["imnet_first"], _facts["imnet_r2"]
+_im_names = {"resnet50_v1": "ResNet-50 (V1)", "resnet50_v2": "ResNet-50 (V2)", "efficientnet_b0": "EfficientNet-B0",
+             "vit_b_16": "ViT-B/16", "convnext_tiny": "ConvNeXt-T", "swin_t": "Swin-T"}
+
+
+def _imcell(p, key="gap"):
+    c = f"${_hu(p[key], 3, True)}$" + (r"$^\ast$" if key == "gap" and p["verified"] and p["informative"] else "")
+    return c if p["informative"] else f"({c})"
+
+
+_vs = [p["v"] for p in _IMF["resnet50_v1"]["pairs"]]
+lines = [r"\begin{table}[!htbp]",
+         r"\caption{Pretrained ImageNet classifiers (torchvision weights) on the matched fog pairs of Section~\ref{sec:fog-ablation}: gap (drift minus diffusion error), mean over three noise seeds on $10{,}000$ validation images (ten per class). The models never saw fog. A star marks a verified gap under the rule of Section~\ref{sec:fog-ablation}, with the inputs mapped back by the known $L_t^{-1}$ as the floor; parentheses mark pairs the rule skips because they are not informative (a member above $0.95$ error or within $0.01$ of the clean error). The BN-adapt rows come from a rerun with shuffled batches, whose largest change of a frozen gap is $" + _hu(_facts["imnet_r2_max_gap_change"], 3) + r"$.}",
+         r"\label{tab:imnet}", r"\centering\scriptsize\setlength{\tabcolsep}{3pt}",
+         r"\begin{tabular}{lccccccc}", r"\toprule",
+         r" & Clean & \multicolumn{6}{c}{Gap at $v =$} \\", r"\cmidrule(lr){3-8}",
+         r"Model & error & " + " & ".join(f"${v:g}$" for v in _vs) + r" \\", r"\midrule",
+         r"\multicolumn{8}{l}{\emph{Batch normalization, frozen}} \\"]
+for m_ in ("resnet50_v1", "resnet50_v2", "efficientnet_b0"):
+    lines.append(f"{_im_names[m_]} & {_hu(_IMF[m_]['clean'], 3)} & " + " & ".join(_imcell(p) for p in _IMF[m_]["pairs"]) + r" \\")
+lines.append(r"\multicolumn{8}{l}{\emph{Layer normalization, frozen}} \\")
+for m_ in ("vit_b_16", "convnext_tiny", "swin_t"):
+    lines.append(f"{_im_names[m_]} & {_hu(_IMF[m_]['clean'], 3)} & " + " & ".join(_imcell(p) for p in _IMF[m_]["pairs"]) + r" \\")
+lines.append(r"\multicolumn{8}{l}{\emph{Batch normalization, BN-adapt (rerun)}} \\")
+for m_ in ("resnet50_v1", "resnet50_v2", "efficientnet_b0"):
+    lines.append(f"{_im_names[m_]} & {_hu(_IMR[m_]['clean_bnadapt'], 3)} & " + " & ".join(_imcell(p, 'bn_gap') for p in _IMR[m_]["pairs"]) + r" \\")
+lines += [r"\bottomrule", r"\end{tabular}", r"\end{table}"]
+with open(f"{OUT}/imnet_table.tex", "w") as f:
+    f.write("\n".join(lines) + "\n")
+print("imnet_table.tex written")
+
 # ---------------- summary stats used in the main text (printed for manual transcription) ----------------
 print("\n--- summary numbers quoted in the main text ---")
 for k in [("gauss_noise", 0.2), ("gauss_blur", 2.0), ("fog_beer_lambert", 2.0), ("fog_beer_lambert", 4.0)]:

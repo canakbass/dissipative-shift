@@ -1,0 +1,28 @@
+{
+  "account1": [
+    "imnet-fog-resnet50-v1",
+    "blur-joint-s1"
+  ],
+  "account2": [
+    "imnet-fog-resnet50-v2",
+    "blur-joint-s2"
+  ],
+  "account3": [
+    "imnet-fog-efficientnet-b0",
+    "blur-joint-s3"
+  ],
+  "account4": [
+    "imnet-fog-vit-b-16",
+    "imnet-fog-convnext-tiny",
+    "imnet-fog-swin-t"
+  ],
+  "account3:r2": [
+    "imnet-fog-efficientnet-b0-r2"
+  ],
+  "account1:r2": [
+    "imnet-fog-resnet50-v1-r2"
+  ],
+  "account2:r2": [
+    "imnet-fog-resnet50-v2-r2"
+  ]
+}

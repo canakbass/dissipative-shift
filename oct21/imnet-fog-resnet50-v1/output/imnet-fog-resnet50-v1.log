@@ -1,0 +1,49 @@
+[{"stream_name":"stdout","time":14.580925657,"data":"device: cuda, model: resnet50_v1, smoke: False\n"}
+,{"stream_name":"stdout","time":387.992992495,"data":"  loaded 10000 images from /kaggle/input/datasets/sautkin/imagenet1kvalid (233.9s)\n"}
+,{"stream_name":"stdout","time":389.395015643,"data":"Downloading: \"https://download.pytorch.org/models/resnet50-0676ba61.pth\" to /root/.cache/torch/hub/checkpoints/resnet50-0676ba61.pth\n"}
+,{"stream_name":"stderr","time":390.093016736,"data":"\r  0%|          | 0.00/97.8M [00:00\u003c?, ?B/s]\r 15%|█▍        | 14.6M/97.8M [00:00\u003c00:00, 153MB/s]\r 33%|███▎      | 32.0M/97.8M [00:00\u003c00:00, 170MB/s]\r 51%|█████     | 49.8M/97.8M [00:00\u003c00:00, 177MB/s]\r 68%|██████▊   | 66.8M/97.8M [00:00\u003c00:00, 176MB/s]\r 86%|████████▌ | 83.9M/97.8M [00:00\u003c00:00, 177MB/s]\r100%|██████████| 97.8M/97.8M [00:00\u003c00:00, 180MB/s]\n"}
+,{"stream_name":"stdout","time":417.948395293,"data":"  clean error 0.2493, BN-adapt 0.4093\n"}
+,{"stream_name":"stdout","time":472.577360172,"data":"  seed 1 v=0.0025  drift    t=0.5493 beta=0.577 err=0.3768 err_inv=0.3269 bn=0.4610  (82s)\n"}
+,{"stream_name":"stdout","time":533.285571933,"data":"  seed 1 v=0.0025  diffuse  t=0.0623 beta=0.997 err=0.3261 err_inv=0.3270 bn=0.4628  (143s)\n"}
+,{"stream_name":"stdout","time":593.808923198,"data":"  seed 1 v=0.005   drift    t=0.8047 beta=0.447 err=0.4768 err_inv=0.3701 bn=0.5038  (203s)\n"}
+,{"stream_name":"stdout","time":654.999861057,"data":"  seed 1 v=0.005   diffuse  t=0.1242 beta=0.994 err=0.3711 err_inv=0.3716 bn=0.4976  (264s)\n"}
+,{"stream_name":"stdout","time":715.737081272,"data":"  seed 1 v=0.01    drift    t=1.0986 beta=0.333 err=0.6140 err_inv=0.4630 bn=0.5608  (325s)\n"}
+,{"stream_name":"stdout","time":776.609393586,"data":"  seed 1 v=0.01    diffuse  t=0.2469 beta=0.988 err=0.4611 err_inv=0.4629 bn=0.5459  (386s)\n"}
+,{"stream_name":"stdout","time":837.762817874,"data":"  seed 1 v=0.021   drift    t=1.4396 beta=0.237 err=0.7837 err_inv=0.6195 bn=0.6617  (447s)\n"}
+,{"stream_name":"stdout","time":899.022566596,"data":"  seed 1 v=0.021   diffuse  t=0.5117 beta=0.975 err=0.6095 err_inv=0.6197 bn=0.6221  (508s)\n"}
+,{"stream_name":"stdout","time":960.259796492,"data":"  seed 1 v=0.042   drift    t=1.7719 beta=0.170 err=0.8978 err_inv=0.8166 bn=0.7767  (570s)\n"}
+,{"stream_name":"stdout","time":1021.025661091,"data":"  seed 1 v=0.042   diffuse  t=0.9985 beta=0.951 err=0.7955 err_inv=0.8136 bn=0.7230  (630s)\n"}
+,{"stream_name":"stdout","time":1081.770699084,"data":"  seed 1 v=0.089   drift    t=2.1397 beta=0.118 err=0.9597 err_inv=0.9683 bn=0.8869  (691s)\n"}
+,{"stream_name":"stdout","time":1142.493682055,"data":"  seed 1 v=0.089   diffuse  t=2.0090 beta=0.904 err=0.9542 err_inv=0.9683 bn=0.8291  (752s)\n"}
+,{"stream_name":"stdout","time":1203.257707028,"data":"  seed 2 v=0.0025  drift    t=0.5493 beta=0.577 err=0.3774 err_inv=0.3243 bn=0.4590  (813s)\n"}
+,{"stream_name":"stdout","time":1264.049612173,"data":"  seed 2 v=0.0025  diffuse  t=0.0623 beta=0.997 err=0.3248 err_inv=0.3247 bn=0.4582  (873s)\n"}
+,{"stream_name":"stdout","time":1324.859411962,"data":"  seed 2 v=0.005   drift    t=0.8047 beta=0.447 err=0.4795 err_inv=0.3715 bn=0.4994  (934s)\n"}
+,{"stream_name":"stdout","time":1385.715245512,"data":"  seed 2 v=0.005   diffuse  t=0.1242 beta=0.994 err=0.3737 err_inv=0.3742 bn=0.4945  (995s)\n"}
+,{"stream_name":"stdout","time":1446.54023676,"data":"  seed 2 v=0.01    drift    t=1.0986 beta=0.333 err=0.6139 err_inv=0.4638 bn=0.5638  (1056s)\n"}
+,{"stream_name":"stdout","time":1507.344726145,"data":"  seed 2 v=0.01    diffuse  t=0.2469 beta=0.988 err=0.4607 err_inv=0.4644 bn=0.5450  (1117s)\n"}
+,{"stream_name":"stdout","time":1568.238035765,"data":"  seed 2 v=0.021   drift    t=1.4396 beta=0.237 err=0.7839 err_inv=0.6193 bn=0.6604  (1178s)\n"}
+,{"stream_name":"stdout","time":1629.025272979,"data":"  seed 2 v=0.021   diffuse  t=0.5117 beta=0.975 err=0.6129 err_inv=0.6219 bn=0.6328  (1238s)\n"}
+,{"stream_name":"stdout","time":1689.856197039,"data":"  seed 2 v=0.042   drift    t=1.7719 beta=0.170 err=0.8976 err_inv=0.8157 bn=0.7725  (1299s)\n"}
+,{"stream_name":"stdout","time":1750.672007483,"data":"  seed 2 v=0.042   diffuse  t=0.9985 beta=0.951 err=0.7940 err_inv=0.8142 bn=0.7238  (1360s)\n"}
+,{"stream_name":"stdout","time":1811.422204232,"data":"  seed 2 v=0.089   drift    t=2.1397 beta=0.118 err=0.9617 err_inv=0.9674 bn=0.8896  (1421s)\n"}
+,{"stream_name":"stdout","time":1872.195387338,"data":"  seed 2 v=0.089   diffuse  t=2.0090 beta=0.904 err=0.9559 err_inv=0.9683 bn=0.8326  (1482s)\n"}
+,{"stream_name":"stdout","time":1933.106898366,"data":"  seed 3 v=0.0025  drift    t=0.5493 beta=0.577 err=0.3781 err_inv=0.3255 bn=0.4630  (1543s)\n"}
+,{"stream_name":"stdout","time":1993.963733982,"data":"  seed 3 v=0.0025  diffuse  t=0.0623 beta=0.997 err=0.3238 err_inv=0.3239 bn=0.4585  (1603s)\n"}
+,{"stream_name":"stdout","time":2054.852874383,"data":"  seed 3 v=0.005   drift    t=0.8047 beta=0.447 err=0.4779 err_inv=0.3745 bn=0.4982  (1664s)\n"}
+,{"stream_name":"stdout","time":2115.847932937,"data":"  seed 3 v=0.005   diffuse  t=0.1242 beta=0.994 err=0.3720 err_inv=0.3732 bn=0.4947  (1725s)\n"}
+,{"stream_name":"stdout","time":2176.780704956,"data":"  seed 3 v=0.01    drift    t=1.0986 beta=0.333 err=0.6148 err_inv=0.4633 bn=0.5625  (1786s)\n"}
+,{"stream_name":"stdout","time":2237.734913087,"data":"  seed 3 v=0.01    diffuse  t=0.2469 beta=0.988 err=0.4567 err_inv=0.4587 bn=0.5475  (1847s)\n"}
+,{"stream_name":"stdout","time":2298.636875807,"data":"  seed 3 v=0.021   drift    t=1.4396 beta=0.237 err=0.7831 err_inv=0.6185 bn=0.6604  (1908s)\n"}
+,{"stream_name":"stdout","time":2359.595601646,"data":"  seed 3 v=0.021   diffuse  t=0.5117 beta=0.975 err=0.6114 err_inv=0.6226 bn=0.6267  (1969s)\n"}
+,{"stream_name":"stdout","time":2420.572103245,"data":"  seed 3 v=0.042   drift    t=1.7719 beta=0.170 err=0.8965 err_inv=0.8167 bn=0.7711  (2030s)\n"}
+,{"stream_name":"stdout","time":2481.473684586,"data":"  seed 3 v=0.042   diffuse  t=0.9985 beta=0.951 err=0.7960 err_inv=0.8207 bn=0.7183  (2091s)\n"}
+,{"stream_name":"stdout","time":2542.282496016,"data":"  seed 3 v=0.089   drift    t=2.1397 beta=0.118 err=0.9593 err_inv=0.9706 bn=0.8869  (2152s)\n"}
+,{"stream_name":"stdout","time":2603.12580522,"data":"  seed 3 v=0.089   diffuse  t=2.0090 beta=0.904 err=0.9528 err_inv=0.9683 bn=0.8323  (2213s)\n"}
+,{"stream_name":"stdout","time":2603.263696404,"data":"done (2213s): 37 rows\n"}
+,{"stream_name":"stderr","time":2609.428177127,"data":"/usr/local/lib/python3.13/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\|'\n"}
+,{"stream_name":"stderr","time":2609.428207049,"data":"  cells[i][c] = re.sub('\\\\\\\\\\|', '|', cell)\n"}
+,{"stream_name":"stderr","time":2609.717811258,"data":"/usr/local/lib/python3.13/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\_'\n"}
+,{"stream_name":"stderr","time":2609.717854405,"data":"  text = re.sub(r'_', '\\_', text) # Escape underscores in display text\n"}
+,{"stream_name":"stderr","time":2610.543680587,"data":"[NbConvertApp] Converting notebook __script__.ipynb to html\n"}
+,{"stream_name":"stderr","time":2611.583043106,"data":"[NbConvertApp] Writing 328111 bytes to __results__.html\n"}
+]

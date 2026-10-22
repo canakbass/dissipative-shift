@@ -540,7 +540,7 @@ design("TENT batch", "in batches of $@$ images", const(BN_SCRIPT, r"^TENT_BATCH 
 tent_sgd = re.search(r"torch\.optim\.SGD\(params, lr=TENT_LR, momentum=([\d.]+)\)", src(BN_SCRIPT))
 design("TENT SGD", "In our \\emph{main run} (all four families, three seeds) TENT used\nSGD with momentum $@$ and learning rate",
        float(tent_sgd.group(1)) if tent_sgd else -1)
-check_pow("TENT lr", "and learning rate\n$@$.\nSection", const(BN_SCRIPT, r"^TENT_LR = ([\de.-]+)"), cls="design")
+check_pow("TENT lr", "and learning rate\n$@$.\nAppendix", const(BN_SCRIPT, r"^TENT_LR = ([\de.-]+)"), cls="design")
 # the Adam reruns: the main families (tent_fixed) and the matched-pair joint models (oct3 runner)
 _ADAM_SCRIPTS = ("kaggle_tent_fixed/tent_fixed_kaggle.py", "kaggle_oct3_runner/runner.py")
 _ADAM_LR = (const(_ADAM_SCRIPTS[0], r"^TENT_LR = ([\de.-]+)")
@@ -605,7 +605,7 @@ _own_frozen = all("frozen_model = train_model(x_frozen_train, y_frozen_train)" i
 # the abstract no longer says "one per blur" (review 18, C1 rule ii); it stays in the contributions and Section 5.2
 word("contribution: one frozen model per blur", "frozen ResNet-18\nmodels (one per blur)", _own_frozen, cls="design")
 word("blur pair: one frozen model per blur", "their frozen ResNet-18 models (one per blur,", _own_frozen, cls="design")
-word("limitations: one frozen model per blur", "comparison uses one frozen model per blur; no single model trained on both", _own_frozen, cls="design")
+# (review 20) the single-model blur rerun replaced the "one frozen model per blur" limitation (Section 5.2)
 check("blur pair frozen", "Section~\\ref{sec:setup}) to nearly the same error, $@$ and $@$, and a report",
       F("gauss_blur_t2_frozen"), F("blur_heat_t2_frozen"))
 check("blur pair BN", "(BN-adapt) removes $@$ of the error under deterministic blur and $@$\nunder heat-equation blur",
@@ -623,7 +623,8 @@ word("discussion: zero padding opened a gap", "with zero padding BN-adapt itself
      all(r["bn_gap"] > 0.05 for r in F("fjf_adapt")))
 check("blur pair decomposition", "avoidable gap $\\Delta_{\\text{frozen}}$ is $@$ times larger under deterministic blur\n($@$ against $@$), and BN-adapt recovers $@\\%$ of that gap under\ndeterministic blur but only $@\\%$ under heat-equation blur, a factor of $@$",
       _gd / _gh, _gd, _gh, 100 * _fd, 100 * _fh, _fd / _fh)
-check("abstract: blur ratio", "statistics removes $@$ times\nas much error from the noise-free one", F("blur_ratio_bn"))
+check("abstract: blur ratio", "statistics removes $@$ times\n($@$ with one frozen model) as much error from the noise-free one", F("blur_ratio_bn"),
+      F("blur_joint", "ratio_of_means"))
 check("abstract: blur factor split", "measured against a classifier retrained at\neach severity, a reference loose on images and so recipe-relative, its avoidable\nerror is $@$ times larger", _gd / _gh)
 word("abstract: only part of the factor lies in the avoidable error", "its avoidable\nerror is $2.1$ times larger",
      1 < _gd / _gh < F("blur_ratio_bn"))
@@ -699,7 +700,7 @@ word("fog-noise mean over all five rows", "(over all five rows, $t = 0$ included
 word("fog-noise max at t=0.1", "at most $0.0083$ (fog $t = 0.1$)", float(argmax_t) == 0.1)
 check("fog-noise t=0", "two\nruns already differ by $@$", F("fog_noise_t0_diff"))
 word("noise curve concave", "along the concave noise\ncurve", F("noise_oracle_concave"))
-word("oracle consistent between fog and noise (main family)", "The oracle is thus consistent between fog\nand noise in our main family", F("fog_noise_max_absdiff") < 0.01)
+word("oracle consistent between fog and noise (main family)", "The oracle thus agrees between fog\nand noise in our main family", F("fog_noise_max_absdiff") < 0.01)
 word("conclusion: oracle agrees between fog and noise", "The oracle agrees\nbetween fog and noise in our main family but is certifiably loose", F("fog_noise_max_absdiff") < 0.01)
 word("conclusion and abstract: loose for the 15-epoch recipe", "certifiably loose on images for our\n15-epoch recipe", F("cert_all_pos") > 0 and F("cert_all_by_joint200") > 0)
 word("abstract: the reference is loose, so recipe-relative", "a reference loose on images and so\nrecipe-relative", F("cert_all_pos") > 0)
@@ -876,7 +877,7 @@ check("app G: TENT and EATA agree", "TENT and EATA agreeing to within $@$ at our
 check("SGD spread", "BN-adapt, TENT and EATA agree to within $@$ at\nevery held-out severity", F("sgd_bn_tent_eata_spread_max"), rnd="up")
 SW = load("kaggle_tent_lrsweep/output_seed1/cifar10_c_results_tentsweep_seed2.jsonl")
 cfgs = [k for k in SW[0]["errs"] if k != "bnadapt"]
-design("sixteen configurations", "sweep of $@$ configurations (Appendix", len(cfgs))
+design("sixteen configurations", "sweep of $@$ configurations (below)", len(cfgs))
 _lrs = sorted({float(c.split("_lr")[1].split("_")[0]) for c in cfgs})
 check_pow("sweep lr range low", "learning rates $@$ to", min(_lrs), cls="design")
 check_pow("sweep lr range high", "to $@$, one or four steps per", max(_lrs), cls="design")
@@ -892,6 +893,14 @@ check_pow("Adam rerun lr", "Rerun with Adam at $@$ and three", _ADAM_LR, cls="de
 check("adam gaps", "TENT beats BN-adapt under noise by $@$,\n$@$ and $@$ at $t = 0.05, 0.1, 0.2$",
       F("fixed", "0.05", "bn_minus_tent"), F("fixed", "0.1", "bn_minus_tent"), F("fixed", "0.2", "bn_minus_tent"))
 word("adam indistinguishable at 0.02", "ties at $t = 0.02$", abs(F("fixed", "0.02", "bn_minus_tent")) < 0.002)
+# Section 5.6, a summary of Appendices G and H since round 20
+check("5.6 summary: sweep", "the best configuration of a\npre-specified sweep beat it by $@$ under noise, where none was predicted to beat it\nby more than $@$",
+      sw["gauss_noise"]["gap_best"], 0.01 if "by more than 0.01" in src("PREREG_v6_tent_hyperparams.md") else -1)
+word("5.6 summary: the best is SGD under noise and the claim withdrawn", "so we withdrew the claim that entropy minimization adds nothing",
+     sw["gauss_noise"]["gap_best"] > 0.01 and max(sw[f_]["gap_best"] for f_ in sw) == sw["gauss_noise"]["gap_best"])
+check_pow("5.6 summary: Adam lr", "with Adam at $@$, TENT beats it", _ADAM_LR, cls="design")
+check("5.6 summary: Adam under noise", "TENT beats it by up to $@$ (Appendix",
+      max(F("fixed", t, "bn_minus_tent") for t in ("0.02", "0.05", "0.1", "0.2")), rnd="up")
 
 # =========================================================================== DANN
 _dha = F("dann_heat_vs_tent_adam")
@@ -907,6 +916,8 @@ word("heat: DANN behind SGD TENT at t=2", "and behind at $t = 2$) or Adam", all(
      and max(-v for tag in F("dann_heat_vs_tent") for t, v in F("dann_heat_vs_tent")[tag].items() if float(t) <= 1) == F("dann_heat_ahead_max"))
 check("heat DANN vs SGD and Adam TENT", "(DANN ahead\nby at most $@$ at $t \\le 1$ and behind at $t = 2$) or Adam (DANN behind by\n$@$ to $@$)",
       F("dann_heat_ahead_max"), min(_dha.values()), max(_dha.values()), rnd=["up", None, None])
+word("5.6 summary: DANN no measurable edge", "DANN, which sees unlabelled target images, gives no measurable edge over TENT in our\n15-epoch protocol",
+     F("dann_resolved_all") == F("dann_resolved_all_worse") and F("dann_heat_within_yardstick"))
 word("behind Adam TENT at every held-out severity", "behind Adam TENT at every held-out severity, all within the yardstick", len(_dha) == 4 and min(_dha.values()) > 0)
 check("app G: TENT cross-run", "TENT's three-seed mean differs between the first two\nby up to $@$ at held-out severities", F("tent_cross_run_max"), rnd="up")
 check("app G: SGD tracks BN", "tracks to within $@$", F("sgd_bn_tent_eata_spread_max"), rnd="up")
@@ -1209,7 +1220,7 @@ word("separate: both members are training severities", "where both members are t
 check("clean model at chance (text)", "at chance at every pair ($@$ to $@$ error; it nominally\npasses at one pair", F("fc_clean_err_min"), F("fc_clean_err_max"))
 word("clean model: nominal pass at one pair, both at chance", "nominally\npasses at one pair, with both members at chance",
      F("fc_clean_npos") == 1 and all(min(r["clean"]["err_drift"], r["clean"]["err_diffuse"]) > 0.85 for r in F("fc_pairs")))
-word("200-epoch run as main result fixed in advance", "the choice to report the 200-epoch run as the main result, was\nfixed before its run",
+word("200-epoch run as main result fixed in advance", "the choice of the 200-epoch run as the main result, was fixed\nbefore its run",
      "main numbers moved here, as fixed in advance" in BODY)
 word("sampling floor: joint model, or the clean model for separate models", "measured with the joint model, or the clean-only model for\nseparate models",
      '("fog_drift", td, "clean", s)]["err_frozen_inv"]' in src("paper/facts.py") and 'jb[("fog_drift", td, s)]["err_frozen_inv"]' in src("paper/facts.py"), cls="design")
@@ -1297,10 +1308,8 @@ word("all witnesses: which classifiers", "witnesses are the oracles and frozen m
 _pool = src("paper/facts.py")[src("paper/facts.py").index("_pts = []"):src("paper/facts.py").index("_wit = [")].lower()
 word("all witnesses: what is excluded", "DANN, other runs of the main families and batch-dependent test-time methods are\nnot used",
      "dann" not in _pool and "tent" not in _pool and "eata" not in _pool and "bnadapt" not in _pool.replace("_", ""), cls="design")
-word("main fog family: log-width near the upper rate", "In the main family the log-width grows near the\nupper rate",
-     abs(F("ce_cifar_main_slope") - F("ce_cifar_main_two_delta_a")) < 0.1 * F("ce_cifar_main_two_delta_a"))
-word("three rectangles, one per regime", "(one bootstrap rectangle per regime, on the same images;",
-     len([k for k in ("fog_main", "fog_drift", "fog_diffuse") if k in F("ce_cifar")]) == 3)
+# round 20: the certified-interval paragraph left Section 5.5 (Appendix C gives it in full, with
+# its own checks); removed: "main fog family: log-width near the upper rate", "three rectangles, one per regime"
 check("other certificates", "The other $@$ use\n15-epoch oracles ($@$ at the same $v$", F("cert_all_by_15epoch"), F("cert_15epoch_same_v"))
 check("other certificates at larger v", "at the same $v$, $@$ at a larger $v$)", F("cert_15epoch_larger_v"))
 word("other certificates are oracles", "use\n15-epoch oracles",
@@ -1424,6 +1433,146 @@ check("c100 blur pair", "the blurs leave their frozen models at $@$ and\n$@$ err
       100 * _ga["bn_removes"][0] / _gapa, 100 * _gb["bn_removes"][0] / _gapb, _ga["oracle"][0], _gb["oracle"][0])
 word("c100 blur three seeds", "Both comparisons hold in direction on CIFAR-100, and the fog gap also in separate\n15-epoch models",
      all(v["n"] == 3 for v in _cb.values()) and all(len(r["d_raw"]) == 3 for r in _j100))
+# =========================================================================== pretrained ImageNet models and the single-model blur pair (21 October)
+_IMS = "kaggle_imnet_fog/imnet_fog.py"
+_SUMM = os.path.join(ROOT, "oct21", "summarize.py")
+# the facts reimplement oct21/summarize.py (the pre-specified rule as run); compare every field
+try:
+    import importlib.util as _ilu
+    _sp = _ilu.spec_from_file_location("oct21_summarize", _SUMM)
+    _sm = _ilu.module_from_spec(_sp)
+    _sp.loader.exec_module(_sm)
+
+    def _same(a, b):
+        if isinstance(a, float) or isinstance(b, float):
+            return a is not None and b is not None and math.isclose(a, b, rel_tol=1e-12, abs_tol=1e-12)
+        return a == b
+    _diff = []
+    for _run in ("first", "r2"):
+        for _m, _r in _sm.imnet(_run).items():
+            _f = F(f"imnet_{_run}", _m)
+            _diff += [(_run, _m, k) for k in ("clean", "clean_bnadapt") if not _same(_r[k], _f[k])]
+            _diff += [(_run, _m, p["v"], k) for p, q in zip(_r["pairs"], _f["pairs"])
+                      for k in ("v", "err_drift", "err_diffuse", "gap", "sd", "floor", "informative", "verified",
+                                "positive", "negative", "bn_gap") if not _same(p[k], q[k])]
+    _dec = _sm.decide(_sm.imnet("first"))
+    _diff += [k for k, a, b in (("H1", _dec["H1"], F("imnet_H1")), ("H2", _dec["H2"], F("imnet_H2")),
+                                ("outcome", _dec["outcome"], F("imnet_outcome")),
+                                ("negative", _dec["negative_verified"], F("imnet_negative"))) if not _same(a, b)]
+    _bjs = _sm.blur_joint()
+    _diff += [k for k in ("ratio_of_means", "outcome", "frozen_det", "frozen_heat", "oracle_det", "oracle_heat",
+                          "gap_ratio", "recovered_det", "recovered_heat", "recovered_ratio")
+              if not _same(_bjs[k], F("blur_joint", k))]
+    _diff += ["ratio_per_seed"] * (not all(_same(a, b) for a, b in zip(_bjs["ratio_per_seed"], F("blur_joint", "ratio_per_seed"))))
+    if _diff:
+        FAILS.append(f"facts.py and oct21/summarize.py disagree: {_diff[:5]}")
+    else:
+        PASSES += 1
+except Exception as _e:  # the comparison itself must run
+    FAILS.append(f"oct21/summarize.py comparison failed: {_e!r}")
+
+_IMF, _IMR = F("imnet_first"), F("imnet_r2")
+_IMBN, _IMLN = ["resnet50_v1", "resnet50_v2", "efficientnet_b0"], ["vit_b_16", "convnext_tiny", "swin_t"]
+_imv = sorted({p["v"] for m_ in _IMF for p in _IMF[m_]["pairs"]})
+_npi, _ninf = F("imnet_npos"), F("imnet_n_informative")
+_neg = F("imnet_negative")
+_g42 = F("imnet_gap_042")
+_im_src = src(_IMS)
+# pretrained torchvision weights, evaluated only (no optimizer, no fog in any training)
+_never_fog = "IMAGENET1K_V1" in _im_src and "optim" not in _im_src and "backward" not in _im_src
+_im_all_show = all(_npi[m_] >= 2 for m_ in _IMBN + _IMLN) and len(_IMF) == 6
+_im_bn_ln = {m_: k for m_, (_, _, k) in eval(re.search(r"(?ms)^MODELS = (\{.*?^\})", _im_src).group(1)).items()}
+word("ImageNet: six models, three of each normalization",
+     "six torchvision classifiers,\nthree with batch normalization (ResNet-50 V1 and V2, EfficientNet-B0) and three with\nlayer normalization (ViT-B/16, ConvNeXt-T, Swin-T)",
+     [m_ for m_ in _im_bn_ln if _im_bn_ln[m_] == "bn"] == _IMBN and sorted(m_ for m_ in _im_bn_ln if _im_bn_ln[m_] == "ln") == sorted(_IMLN)
+     and set(_IMF) == set(_IMBN + _IMLN), cls="design")
+word("ImageNet: frozen, ten images per class, three seeds",
+     "were evaluated frozen on ten\nImageNet validation images per class, under both fog regimes and with the rule of",
+     const(_IMS, r"^PER_CLASS = (\d+)") == 10 and _never_fog and all(_IMF[m_]["seeds"] == [1, 2, 3] for m_ in _IMF),
+     cls="design")
+design("ImageNet: v range", "at six matched $v$ from $@$ to $@$ with three\nnoise seeds", _imv[0], _imv[-1])
+word("ImageNet: six v, three noise seeds", "at six matched $v$ from",
+     len(_imv) == 6 and _imv == eval(re.search(r"^V_GRID = (\[.*\])", _im_src, re.M).group(1))
+     and eval(re.search(r"^NOISE_SEEDS = (\[.*\])", _im_src, re.M).group(1)) == [1, 2, 3], cls="design")
+word("ImageNet: pre-specified outcome class", "The outcome is that the gap transfers but is\nnot specific to batch normalization",
+     F("imnet_outcome") == "transfers at scale, not specific to batch normalization" and F("imnet_H1") and not F("imnet_H2"))
+word("ImageNet: every informative pair positive but one",
+     "every model shows a verified positive gap at\nevery informative pair except one",
+     sum(_ninf[m_] - _npi[m_] for m_ in _IMF) == 1 and sum(len(x) for x in _neg.values()) == 1)
+_neg_m = [m_ for m_ in _neg if _neg[m_]]
+_neg_p = [p for p in _IMF[_neg_m[0]]["pairs"] if p["v"] == _neg[_neg_m[0]][0]][0] if _neg_m else None
+check("ImageNet: the negative pair", "EfficientNet-B0 at $v = @$ (verified negative,\n$@$)",
+      _neg_p["v"] if _neg_p else -1, _neg_p["gap"] if _neg_p else -1)
+word("ImageNet: the negative pair is EfficientNet-B0's", "EfficientNet-B0 at $v =", _neg_m == ["efficientnet_b0"])
+check("ImageNet: LN largest at 0.042", "the layer-normalized models the largest (at $v = @$, $+@$ for\nViT-B/16 against $+@$ for ResNet-50 V1",
+      0.042, _g42["vit_b_16"], _g42["resnet50_v1"])
+word("ImageNet: ResNet-50 V1 has the largest BN gap", "ViT-B/16 against $+0.102$ for ResNet-50 V1, the largest with batch normalization",
+     max(_IMBN, key=_g42.get) == "resnet50_v1")
+word("ImageNet: LN gaps the largest", "the layer-normalized models the largest",
+     min(_g42[m_] for m_ in _IMLN) > max(_g42[m_] for m_ in _IMBN) and max(_g42, key=_g42.get) == "vit_b_16"
+     and 0.042 in _imv)
+check("ImageNet: inverse map restores", "the drift member errs within $@$ of the\ndiffusion member at every informative pair",
+      F("imnet_inv_restore_max"), rnd="up")
+check("ImageNet: BN-adapt", "keeps the gaps at $v \\le @$ to at most $@$ and\nEfficientNet-B0's to at most $@$ at every $v$, but leaves $@$ and $@$ in the\nResNet-50s at $v = @$",
+      0.005, F("imnet_bn_small_v_max"), F("imnet_bn_effnet_max"), *F("imnet_bn_resnet_042"), 0.042,
+      rnd=[None, "up", "up", None, None, None])
+# round 20: "ImageNet: no oracle, models never saw fog" left Section 5.7 for page length; the
+# Limitations sentence (checked below) states both
+word("ImageNet: BN-adapt from the shuffled rerun", "BN-adapt, rerun with shuffled batches",
+     "randperm" in _im_src and set(_IMR) == set(_IMBN))
+# abstract, contributions, Section 5.4, discussion, limitations, conclusion
+for _lab, _t in (("abstract", "Six pretrained ImageNet classifiers that never saw\nfog show the gap with either normalization"),
+                 ("contributions", "Six pretrained ImageNet classifiers, which never saw fog, show the gap\nwith either normalization, larger with layer normalization"),
+                 ("conclusion", "six pretrained ImageNet classifiers with either\nnormalization err more as well"),
+                 ("discussion", "the fog gap reaches all six off-the-shelf ImageNet classifiers we tested"),
+                 ("Section 5.4", "test on pretrained ImageNet models, which never saw fog, partly widened it again:\nthere the gap appears with either normalization"),
+                 ("Appendix B scope", "pre-specified test on pretrained ImageNet models partly widened it\nagain: models that never saw fog show the gap with either normalization")):
+    word(f"ImageNet in the {_lab}", _t, _never_fog and _im_all_show
+         and min(_g42[m_] for m_ in _IMLN) > max(_g42[m_] for m_ in _IMBN))
+word("Appendix B: the date of the ImageNet rule", "On 21 October a pre-specified test",
+     os.path.exists(os.path.join(ROOT, "rules", "2026-10-21_imagenet_and_single_blur.md")), cls="design")
+word("Appendix A: scope partly widened", "and later partly widened", F("imnet_H1") and not F("imnet_H2"))
+word("mechanism: BN-adapt closes most of the ImageNet gap at small v", "with BN-adapt closing most of the ImageNet gap at small $v$",
+     all(abs(p["bn_gap"]) < 0.5 * p["gap"] for m_ in _IMR for p in _IMR[m_]["pairs"] if p["v"] <= 0.005))
+word("mechanism: does not explain the layer-normalized gaps", "For the layer-normalized ImageNet models, which never saw\nfog, sensitivity to low contrast",
+     _never_fog and min(_g42[m_] for m_ in _IMLN) > max(_g42[m_] for m_ in _IMBN))
+word("limitations: clean pretraining, no ImageNet oracle", "We used only clean-pretrained\nImageNet models, without oracles",
+     _never_fog and "oracle" not in _im_src.lower(), cls="design")
+# Appendix B: the batch-order correction
+design("batch order: batch and classes", "so each batch of $@$ held $@$ classes",
+       const(_IMS, r"^BATCH = (\d+)"), const(_IMS, r"^BATCH = (\d+)") / const(_IMS, r"^PER_CLASS = (\d+)"))
+check("batch order: first BN-adapt clean error", "BN-adapt's clean\nerror in the first EfficientNet-B0 run was $@$", _IMF["efficientnet_b0"]["clean_bnadapt"])
+check("batch order: rerun reproduces frozen gaps", "which the rerun reproduced (largest change of a gap $@$)", F("imnet_r2_max_gap_change"))
+word("batch order: same decisions in the rerun", "The rule uses frozen\nerrors, which the rerun reproduced", F("imnet_r2_same_decision"))
+word("batch order: three BN models rerun", "reran the three batch-normalized models", set(_IMR) == set(_IMBN))
+# Table 7 rows
+check("rules: ImageNet", "H1 held, H2 failed (all $@$ models of each kind pass)", sum(_npi[m_] >= 2 for m_ in _IMBN))
+word("rules: ImageNet, every model of each kind passes", "H1 held, H2 failed (all $3$ models of each kind pass)",
+     sum(_npi[m_] >= 2 for m_ in _IMBN) == len(_IMBN) == sum(_npi[m_] >= 2 for m_ in _IMLN) == len(_IMLN) == 3)
+word("rules: ImageNet outcome", "transfers, not specific to batch normalization; one verified negative gap",
+     F("imnet_H1") and not F("imnet_H2") and sum(len(x) for x in _neg.values()) == 1)
+_bj = F("blur_joint")
+check("rules: single-model blur", "Ratio above $@$ in every seed, $@$ from seed means: replicates", 1, _bj["ratio_of_means"])
+word("rules: single-model blur replicates", "in every seed, $7.4$ from seed means: replicates",
+     _bj["outcome"] == "replicates" and min(_bj["ratio_per_seed"]) > 1 and len(_bj["seeds"]) == 3)
+# Section 5.2 and the 7.4 in the abstract, contributions and conclusion
+check("single-model blur pair", "gives $@$ ($@$ to $@$ per seed;\nreplicating by our rule) at less similar frozen errors ($@$, $@$); against\nits oracles, a $@$-fold larger avoidable gap times a $@$-fold larger recovered fraction",
+      _bj["ratio_of_means"], min(_bj["ratio_per_seed"]), max(_bj["ratio_per_seed"]), _bj["frozen_det"], _bj["frozen_heat"],
+      _bj["gap_ratio"], _bj["recovered_ratio"])
+word("single-model blur: rule outcome and the identity", "replicating by our rule",
+     _bj["outcome"] == "replicates" and math.isclose(_bj["gap_ratio"] * _bj["recovered_ratio"], _bj["ratio_of_means"], rel_tol=1e-9))
+word("single-model blur: trained on both blurs", "with a single frozen\nmodel, trained on low severities of both blurs",
+     len(glob.glob(os.path.join(ROOT, "oct21", "blur-joint-s*"))) == 3)
+check("contributions: single-model blur", "and $@$ times\nwith a single frozen model trained on both", _bj["ratio_of_means"])
+check("conclusion: single-model blur", "a $7.7$-fold difference ($@$ with a single frozen model)", _bj["ratio_of_means"])
+# the ImageNet table: caption and header (the data rows are covered by the stale-table check)
+check("ImageNet table: images", "mean over three noise seeds on $@$ validation images (ten per class)",
+      1000 * const(_IMS, r"^PER_CLASS = (\d+)"))
+design("ImageNet table: informative thresholds", "(a member above $@$ error or within $@$ of the clean error)",
+       0.95 if "e < 0.95" in src("oct21/summarize.py") else -1, 0.01 if 'clean["err"] + 0.01' in src("oct21/summarize.py") else -1)
+check("ImageNet table: rerun change", "whose largest change of a frozen gap is $@$", F("imnet_r2_max_gap_change"))
+design("ImageNet table: header v", "Model & error & $@$ & $@$ & $@$ & $@$ & $@$ & $@$ \\\\", *_imv)
+
 # =========================================================================== generated tables
 with tempfile.TemporaryDirectory() as tmp:
     env = dict(os.environ, TABLES_OUT=tmp)
@@ -1463,7 +1612,8 @@ def _table_rows(label):
 _ruled = _table_rows("tab:rules") + "\n" + _table_rows("tab:prereg")
 _unruled = not re.search(r"factorial", _ruled, re.I) and not re.search(r"CIFAR-100[^\n]*blur|blur[^\n]*CIFAR-100", _ruled)
 word("blur pair identified in the main sweep, not pre-specified", "(a comparison we identified in the main run,\nnot a pre-specified one)",
-     not re.search(r"blur", _table_rows("tab:rules"), re.I)
+     # the single-model rerun (21 October) was pre-specified; the original comparison was not
+     not any("blur" in l.lower() and not l.startswith("Single-model blur pair") for l in _table_rows("tab:rules").split("\n"))
      and not any("blur" in l and "BN-adapt" in l for l in _table_rows("tab:prereg").split("\n")))
 design("TENT prediction threshold (main text)", "none would\nbeat BN-adapt by more than $@$. It failed",
        0.01 if "by more than 0.01" in src("PREREG_v6_tent_hyperparams.md") else -1)
@@ -1507,7 +1657,7 @@ word("limitations: Table 7 lists the pre-specified tests", "list the pre-specifi
 word("factorial is exploratory (no rule in Appendix A)", "In an exploratory $2\\times2$ factorial on the periodic Fourier operator", _unruled)
 word("factorial: no rule fixed in advance", "no rule fixed in advance; Table~\\ref{tab:factorial}", _unruled)
 word("CIFAR-100 blur pair is exploratory (no rule in Appendix A)", "This exploratory run had no rule.", _unruled)
-word("why the low-contrast member errs more is untested", "Why frozen batch normalization produces the gap, and why\non the lower-contrast member, remains untested. A plausible mechanism, consistent\nwith the padding, normalization and standardization results",
+word("why the low-contrast member errs more is untested", "Why frozen batch normalization produces the gap, and why\non the lower-contrast member, remains untested. A plausible mechanism for the fog-trained\nmodels",
      all(_V[k]["d_raw_mean"] > 0 and F("matched_contrast")[k]["drift"] < F("matched_contrast")[k]["diffuse"] for _V in (_V0, _V1) for k in _outer2))
 word("separate models: the contrast reading is untested", "One untested reading\nis that the drift model spreads",
      min(_sc["drift_matched"]) < min(_sc["diffuse_own"]))

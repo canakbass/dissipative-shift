@@ -1,0 +1,15 @@
+{
+  "id": "account3/imnet-fog-efficientnet-b0",
+  "title": "imnet-fog-efficientnet-b0",
+  "code_file": "imnet_fog.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "dataset_sources": [
+    "sautkin/imagenet1kvalid"
+  ],
+  "competition_sources": [],
+  "kernel_sources": []
+}

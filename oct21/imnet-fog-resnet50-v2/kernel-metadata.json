@@ -1,0 +1,15 @@
+{
+  "id": "account2/imnet-fog-resnet50-v2",
+  "title": "imnet-fog-resnet50-v2",
+  "code_file": "imnet_fog.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "dataset_sources": [
+    "sautkin/imagenet1kvalid"
+  ],
+  "competition_sources": [],
+  "kernel_sources": []
+}

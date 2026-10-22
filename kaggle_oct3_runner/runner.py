@@ -127,7 +127,12 @@ JOBS = {
     "fog_joint_full_gn32": {},
     "fog_joint_full_ln": {},
     "fog_joint_full_std": {},
+    # one frozen model trained on the low severities of both blurs (oct21/PLAN.md, experiment 3)
+    "blur_joint": {},
 }
+BLUR_JOINT_JOBS = ("blur_joint",)
+BLUR_JOINT_FAMILIES = ("gauss_blur", "blurfft_s15_a01")   # deterministic blur, heat-equation blur
+BLUR_JOINT_ORACLE_TS = (1.0, 2.0)
 NORM_ABLATION_JOBS = ("fog_joint_full_gn32", "fog_joint_full_ln", "fog_joint_full_std")
 FOG_JOINT_JOBS = ("fog_joint", "c100_fog_joint", "fog_joint_full", "c100_fog_joint_full",
                   "fog_joint_full_reflect") + NORM_ABLATION_JOBS
@@ -748,6 +753,49 @@ def run_fog_joint(x_train_raw, y_train, x_eval_raw, y_eval, rng):
     return rows
 
 
+def run_blur_joint(x_train_raw, y_train, x_eval_raw, y_eval, rng):
+    """A single frozen model, as for the fog pairs, trained on the clean images and the
+    two lowest positive severities of both blurs (five points, the same total budget),
+    and evaluated on both blurs at every test severity with BN-adapt and TENT (Adam).
+    Oracles are retrained at t = 1 and 2 of each blur for the oracle-measured split."""
+    print("\n########## blur_joint: one model, both blurs ##########", flush=True)
+    grid = [("gauss_blur", 0.0)] + [(fam, t) for fam in BLUR_JOINT_FAMILIES for t in BLUR_GRID["train_ts"] if t > 0]
+    print(f"  training grid: {grid}", flush=True)
+    t0 = time.time()
+    n_per = N_TRAIN_IMG // len(grid)
+    chunks, labels = [], []
+    for i, (fam, t) in enumerate(grid):
+        sl = slice(i * n_per, (i + 1) * n_per)
+        chunks.append(corrupt(x_train_raw[sl], t, fam, rng))
+        labels.append(y_train[sl])
+    model = train_model(np.concatenate(chunks), np.concatenate(labels), epochs=EPOCHS)
+    torch.save(model.state_dict(), f"/kaggle/working/blurjoint_seed{SEED}.pt")
+    print(f"  joint blur model trained, {EPOCHS} epochs ({time.time()-t0:.1f}s)", flush=True)
+    rows = []
+    for fam in BLUR_JOINT_FAMILIES:
+        for t in BLUR_GRID["test_ts"]:
+            x_eval_t = corrupt(x_eval_raw, t, fam, rng)
+            err_oracle = None
+            if t in BLUR_JOINT_ORACLE_TS:
+                oracle_model = train_model(corrupt(x_train_raw, t, fam, rng), y_train, seed=SEED + 1)
+                err_oracle = eval_error(oracle_model, x_eval_t, y_eval)
+                del oracle_model
+                if DEVICE.type == "cuda":
+                    torch.cuda.empty_cache()
+            r = dict(job=JOB, dataset=DATASET, family=fam, t=t, seed=SEED, model="blur_joint",
+                     model_train_grid=grid, epochs=EPOCHS, is_train_severity=any(t == g for f, g in grid if f == fam) or t == 0.0,
+                     err_oracle=err_oracle,
+                     err_frozen=eval_error(model, x_eval_t, y_eval),
+                     err_bnadapt=bn_adapt_eval_error(model, x_eval_t, y_eval),
+                     err_tent=tent_eval_error(model, x_eval_t, y_eval))
+            rows.append(r)
+            fmt = lambda e: "---" if e is None else f"{e:.4f}"
+            print(f"  {fam:<16} t={t:<5} oracle={fmt(err_oracle)} frozen={r['err_frozen']:.4f} "
+                  f"bn={r['err_bnadapt']:.4f} tent={r['err_tent']:.4f} ({time.time()-t0:.0f}s)", flush=True)
+    print(f"  blur_joint done ({time.time()-t0:.1f}s)", flush=True)
+    return rows
+
+
 PADDING_JOBS = ("padding_test", "c100_padding_test")
 PAD_KINDS = ("zeros", "reflect", "circular", "haze", "standardize")
 
@@ -886,13 +934,15 @@ def main():
         all_rows.extend(run_fog_joint(x_train, y_train, x_test, y_test, rng))
     if JOB in FOG_COMMON_JOBS:
         all_rows.extend(run_fog_common(x_train, y_train, x_test, y_test, rng))
+    if JOB in BLUR_JOINT_JOBS:
+        all_rows.extend(run_blur_joint(x_train, y_train, x_test, y_test, rng))
     for name, cfg in FAMILIES.items():
         all_rows.extend(run_family(name, cfg, x_train, y_train, x_test, y_test, rng))
     print(f"\ntotal time: {time.time()-t_start:.1f}s", flush=True)
 
     write_jsonl(all_rows, f"/kaggle/working/{DATASET}_c_results_{RUN_TAG}.jsonl")
     try:
-        if JOB not in FOG_COMMON_JOBS + FOG_JOINT_JOBS + PADDING_JOBS:
+        if JOB not in FOG_COMMON_JOBS + FOG_JOINT_JOBS + PADDING_JOBS + BLUR_JOINT_JOBS:
             try_plot(all_rows, f"/kaggle/working/{DATASET}_c_delta_{RUN_TAG}.png")
     except Exception as e:  # a plotting error must never cost the results
         print(f"(plot skipped: {e})", flush=True)

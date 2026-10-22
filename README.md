@@ -11,11 +11,12 @@ Code, result files and checking scripts for the paper of the same title
 | `kaggle_oct3_runner/runner.py` | The later runs: matched fog pairs, the joint model at 15 and 200 epochs, the Adam reruns, the blur factorial, CIFAR-100, Tiny-ImageNet and the first-layer padding test. Their results are in `oct3/*/output/`. |
 | `bench/` | CIFAR-10-C with three pretrained models and the first convolution padded with zeros or reflect: `make_cifar10c_subset.py` generates the four corruptions with the official generator's functions, `padding_cifar10c.py` evaluates, `analyze_bench.py` applies the decision rule. The results are in `oct6/padding-bench/output/bench/`. |
 | `kaggle_oct3_wiener/wiener_lfl.py` | The like-for-like Wiener witness. |
+| `kaggle_imnet_fog/imnet_fog.py`, `oct21/` | Six pretrained torchvision ImageNet classifiers on the matched fog pairs (inference only), and the single-model blur pair (`blur_joint` job of the runner). `oct21/build_kernels.py` writes one kernel directory per run from `oct21/plan.json`; each directory holds the script as run and its outputs (`output/`: results, Kaggle log, per-image correctness). `oct21/summarize.py` applies the decision rule. |
 | `kill_test*.py`, `test_heat_blur.py` | The synthetic checks with closed-form Bayes risk, and the composition check of the heat-equation operator (CPU, minutes). |
 | `certified_extrapolation*.py` | Certified extrapolation of the equivalent noise, synthetic and on CIFAR-10 (CPU). |
 | `float32_saturation_check.py` | The float32 accumulation check described in the corrections log. |
 | `paper/` | `facts.py` (result files to `facts.json`), `verify_claims.py` (checks every number in the paper's source against the result files), `make_tables.py` and `make_figures.py`; in the full archive submitted with the paper, also the paper's LaTeX source. |
-| `rules/` | English translations of the internal run plans that fixed the later decision rules before the runs (matched fog pairs, first-layer padding, CIFAR-10-C, retraining and normalization), with their recorded outcomes. `oct3/summarize.py`, `oct5/analyze_padding.py`, `oct10/analyze_variants.py` and `bench/analyze_bench.py` apply them to the result files. |
+| `rules/` | English translations of the internal run plans that fixed the later decision rules before the runs (matched fog pairs, first-layer padding, CIFAR-10-C, retraining and normalization, pretrained ImageNet models and the single-model blur pair), with their recorded outcomes. `oct3/summarize.py`, `oct5/analyze_padding.py`, `oct10/analyze_variants.py`, `bench/analyze_bench.py` and `oct21/summarize.py` apply them to the result files. |
 | `PREREG_*.md` | Pre-specification documents (the paper's "pre-specified" predictions), kept as written; each outcome was added after its run. |
 | `SEMIGROUP_SCOPE.md` | Notes on which corruptions form a semigroup, and why. |
 
@@ -41,7 +42,9 @@ from the `RUN_SEED` environment variable, except the two Wiener scripts, which s
 `SEED` at the top; `kaggle_oct3_runner/runner.py` runs the job named by the `JOB`
 line at its top (one of the keys of `JOBS`); the padding-test jobs load the weights
 saved by the 200-epoch joint runs from `/kaggle/input`. Each script downloads CIFAR-10,
-CIFAR-100 or Tiny-ImageNet itself; paths under `/kaggle/working` can be changed at
+CIFAR-100 or Tiny-ImageNet itself; `kaggle_imnet_fog/imnet_fog.py` reads the ImageNet
+validation set from the Kaggle dataset `sautkin/imagenet1kvalid` and sets its model in the
+`MODEL` line; paths under `/kaggle/working` can be changed at
 the top of each script. `certified_extrapolation_cifar.py` expects CIFAR-10 in
 `data/cifar-10-batches-py`.
 
