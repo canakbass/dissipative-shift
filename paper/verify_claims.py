@@ -283,7 +283,7 @@ _V0 = {f"{q['v']:.3f}": q for q in F("fjf_pairs")}
 _V1 = {f"{q['v']:.3f}": q for q in F("fjr_pairs")}
 _V1a = {f"{q['v']:.3f}": q for q in F("fjr_adapt")}
 _hd = [_V[k]["d_raw_mean"] for _V in (_V0, _V1) for k in _outer2]
-for lab, tpl in (("abstract", "without per-image standardization err\n$@$ to $@$ more on the lower-contrast member at the two pairs farthest beyond\ntheir training range"),
+for lab, tpl in (("abstract", "without per-image standardization err\n$@$ to $@$ more at the two pairs farthest beyond their training range"),
                  ("contribution", "standardization (reflect or zero padding) err $@$ to $@$ more on the\nlower-contrast member at the two pairs farthest beyond their training range"),
                  ("conclusion", "standardization err\n$@$ to $@$ more on the lower-contrast member of the most extrapolated\nequal-information fog pairs")):
     check(f"headline range ({lab})", tpl, min(_hd), max(_hd))
@@ -293,7 +293,7 @@ word("abstract: the lower-contrast member costs more error", "standardization er
      all(F("matched_contrast")[k]["drift"] < F("matched_contrast")[k]["diffuse"] and _V[k]["d_raw_mean"] > 0 for _V in (_V0, _V1) for k in _outer2))
 word("headline: the two most extrapolated pairs, every seed", "farthest beyond their\ntraining range (the most extrapolated pairs; seed means, positive in each seed)",
      len(_outer2) == 2 and all(_V[k]["positive"] and min(_V[k]["d_raw"]) > 0 for _V in (_V0, _V1) for k in _outer2))
-word("abstract: two padding models behind the headline", "frozen\n200-epoch batch-normalized ResNet-18 models without per-image standardization err",
+word("abstract: two padding models behind the headline", "On CIFAR-10, fog-trained\n200-epoch batch-normalized ResNet-18 models without per-image standardization err",
      len(_hd) == 4 and set(_V0) >= set(_outer2) and set(_V1) >= set(_outer2))
 _every_seed = len(_outer2) == 2 and all(_V[k]["positive"] and min(_V[k]["d_raw"]) > 0 for _V in (_V0, _V1) for k in _outer2)
 for _where, _tpl in (("abstract", "(seed means, positive in each seed), and\nless than $0.02$ more with GroupNorm or layer normalization"),
@@ -623,9 +623,9 @@ word("discussion: zero padding opened a gap", "with zero padding BN-adapt itself
      all(r["bn_gap"] > 0.05 for r in F("fjf_adapt")))
 check("blur pair decomposition", "avoidable gap $\\Delta_{\\text{frozen}}$ is $@$ times larger under deterministic blur\n($@$ against $@$), and BN-adapt recovers $@\\%$ of that gap under\ndeterministic blur but only $@\\%$ under heat-equation blur, a factor of $@$",
       _gd / _gh, _gd, _gh, 100 * _fd, 100 * _fh, _fd / _fh)
-check("abstract: blur ratio", "statistics removes $@$ times as much error under a noise-free\nblur as under a noisy one at similar frozen error", F("blur_ratio_bn"))
-check("abstract: blur factor split", "against a classifier retrained per\nseverity (a recipe-relative reference), the noise-free blur's\navoidable error is $@$ times larger", _gd / _gh)
-word("abstract: only part of the factor lies in the avoidable error", "the noise-free blur's\navoidable error is $2.1$ times larger",
+check("abstract: blur ratio", "statistics removes $@$ times as\nmuch error under a noise-free blur as under a noisy one", F("blur_ratio_bn"))
+check("abstract: blur factor split", "a factor of $@$ of it in the\navoidable error measured against a classifier retrained per severity", _gd / _gh)
+word("abstract: only part of the factor lies in the avoidable error", "a factor of $2.1$ of it in the\navoidable error",
      1 < _gd / _gh < F("blur_ratio_bn"))
 check("contribution: blur factor split", "the $@$ is a\n$@$-fold larger avoidable gap times a $@$-fold larger\nfraction of that gap recovered", F("blur_ratio_bn"), _gd / _gh, _fd / _fh)
 check("conclusion: blur factor split", "and a $@$-fold one in\noracle-measured avoidable error", _gd / _gh)
@@ -703,7 +703,7 @@ word("oracle consistent between fog and noise (main family)", "The oracle thus a
 word("conclusion: oracle agrees between fog and noise", "The oracle agrees\nbetween fog and noise in our main family but is certifiably loose", F("fog_noise_max_absdiff") < 0.01)
 word("conclusion and abstract: loose for the 15-epoch recipe", "certifiably loose on images for our\n15-epoch recipe", F("cert_all_pos") > 0 and F("cert_all_by_joint200") > 0)
 # round 22: "loose on images" left the abstract for length (Sections 5.4 and 5.5 and the conclusion state it)
-word("abstract: the reference is recipe-relative", "(a recipe-relative reference)", F("cert_all_pos") > 0)
+word("abstract: the reference is recipe-relative", "retrained per severity, a recipe-relative\nreference", F("cert_all_pos") > 0)
 word("introduction: cross-family alone certifies nothing beyond chance", "cross-family equivalences alone certify nothing beyond chance",
      len(F("cert_dissipative_positive")) <= 2 * F("cert_dissipative_expected_by_chance"))
 diffuse_dev = max(abs(abl[k]["oracle"] - abl[k]["noise_oracle"]) for k in abl if k.startswith("fog_diffuse") and "noise_oracle" in abl[k])
@@ -1497,20 +1497,20 @@ _pub = F("imnet_clean_above_published")
 check("ImageNet table: clean errors above the published ones", "their clean errors are $@$ to $@$ above the published ones", min(_pub.values()), max(_pub.values()))
 design("ImageNet table: one preprocessing", "All six use one preprocessing (short side $@$, centre crop $@$)",
        256 if "T.Resize(256, antialias=True), T.CenterCrop(224)" in _im_src else -1, 224 if "T.CenterCrop(224)" in _im_src else -1)
-noted("ImageNet: recipes with contrast augmentation", "None was trained on fog, although most of\ntheir recipes include contrast augmentation",
+noted("ImageNet: recipes with contrast augmentation", "None was trained on fog, though most\nrecipes include contrast augmentation",
       "torchvision references/classification/README.md: ResNet-50 V2, ConvNeXt-T and Swin-T use TrivialAugmentWide, ViT-B/16 "
       "RandAugment (both include Contrast and Brightness); EfficientNet-B0 weights ported from timm; ResNet-50 V1: crop and flip only")
-word("ImageNet: the rule with noise seeds and informative pairs", "its three seeds are noise draws for one fixed model, so a\nverified gap holds only against the noise draw",
+word("ImageNet: the rule with noise seeds and informative pairs", "its three seeds are noise draws for one fixed model, so\nverification holds only against the noise draw",
      all(_IMF[m_]["seeds"] == [1, 2, 3] for m_ in _IMF) and "for s in seeds" in src("oct21/summarize.py"))
 design("ImageNet: informative thresholds (text)", "with both members below $@$ error and more than $@$ above the clean error",
        0.95 if "e < 0.95" in src("oct21/summarize.py") else -1, 0.01 if 'clean["err"] + 0.01' in src("oct21/summarize.py") else -1)
 word("ImageNet: six v, three noise seeds", "at six matched $v$ from",
      len(_imv) == 6 and _imv == eval(re.search(r"^V_GRID = (\[.*\])", _im_src, re.M).group(1))
      and eval(re.search(r"^NOISE_SEEDS = (\[.*\])", _im_src, re.M).group(1)) == [1, 2, 3], cls="design")
-word("ImageNet: pre-specified outcome class", "The outcome is that the gap transfers but is\nnot specific to batch normalization",
+word("ImageNet: pre-specified outcome class", "The\noutcome: the gap transfers but is not specific to batch normalization",
      F("imnet_outcome") == "transfers at scale, not specific to batch normalization" and F("imnet_H1") and not F("imnet_H2"))
 word("ImageNet: every informative pair positive but one",
-     "every model shows a verified positive gap at\nevery informative pair except one",
+     "A verified\npositive gap appears at every informative pair but one",
      sum(_ninf[m_] - _npi[m_] for m_ in _IMF) == 1 and sum(len(x) for x in _neg.values()) == 1)
 _neg_m = [m_ for m_ in _neg if _neg[m_]]
 _neg_p = [p for p in _IMF[_neg_m[0]]["pairs"] if p["v"] == _neg[_neg_m[0]][0]][0] if _neg_m else None
@@ -1548,7 +1548,7 @@ word("ImageNet: BN-adapt raises an informative gap, both from the rerun", "its\n
 word("ImageNet: BN-adapt from the shuffled rerun", "BN-adapt, rerun with shuffled batches",
      "randperm" in _im_src and set(_IMR) == set(_IMBN))
 # abstract, contributions, Section 5.4, discussion, limitations, conclusion
-for _lab, _t in (("abstract", "also err more on that member at $32$ of their $33$ informative\npairs, whether they use batch or layer normalization"),
+for _lab, _t in (("abstract", "Six pretrained ImageNet classifiers never\ntrained on fog, three with batch and three with layer normalization, err more on the\nlower-contrast member"),
                  ("contributions", "Six pretrained ImageNet classifiers, never trained on fog, show the gap\nwith batch or layer normalization, larger with layer normalization at $v \\ge 0.021$"),
                  ("conclusion", "six pretrained ImageNet classifiers with batch or\nlayer normalization err more at"),
                  ("discussion", "The fog gap also appears in all six pretrained ImageNet classifiers we tested"),
@@ -1558,10 +1558,13 @@ for _lab, _t in (("abstract", "also err more on that member at $32$ of their $33
          and min(_g42[m_] for m_ in _IMLN) > max(_g42[m_] for m_ in _IMBN) and F("imnet_ln_above_bn_from") == 0.021
          and sum(_ninf[m_] - _npi[m_] for m_ in _IMF) == 1)
 check("contributions: LN larger from", "larger with layer normalization at $v \\ge @$", F("imnet_ln_above_bn_from"))
-for _lab, _t in (("abstract", "also err more on that member at $@$ of their $@$ informative"),
+for _lab, _t in (("abstract", "err more on the\nlower-contrast member at $@$ of their $@$ informative pairs"),
                  ("conclusion", "layer normalization err more at $@$ of their $@$ informative pairs")):
     check(f"ImageNet in the {_lab}: positive of informative pairs", _t, F("imnet_positive_total"), F("imnet_informative_total"))
-word("abstract: ImageNet models never trained on fog", "Six pretrained ImageNet classifiers, never trained\non fog, also err more on that member", _never_fog)
+word("abstract: ImageNet models never trained on fog, three of each normalization", "Six pretrained ImageNet classifiers never\ntrained on fog, three with batch and three with layer normalization",
+     _never_fog and sorted(_im_bn_ln.values()) == ["bn"] * 3 + ["ln"] * 3)
+word("abstract: equal-information fog pairs show the mix, at both scales", "Fog pairs with provably\nequal Bayes risk show the mix directly",
+     F("imnet_positive_total") >= 2 and F("imnet_H1") and _every_seed)
 check("mechanism: LN larger from", "layer-normalized ImageNet models at $v \\ge @$, whose", F("imnet_ln_above_bn_from"))
 word("Appendix B: the ImageNet rule came later", "Later a pre-specified test on pretrained ImageNet models",
      os.path.exists(os.path.join(ROOT, "rules", "2026-10-21_imagenet_and_single_blur.md")), cls="design")
@@ -1708,16 +1711,27 @@ word("appendix A: Adam close to the sweep's best", "which keeps the original ste
      len(_swrows) == 3 and all(abs(r[2] - r[3]) < 0.003 for r in _swrows), cls="design")
 word("appendix A: TENT document required regenerated tables", "The TENT test document required the main tables to be regenerated\nwith the better configuration",
      "The main tables are regenerated with the better TENT configuration" in src("PREREG_v6_tent_hyperparams.md"), cls="design")
-word("introduction: four predictions written before their runs", "All four main predictions were written down before their runs; two failed, one held,\nand one, first recorded as failed",
+# round 23: the introduction's count of the four predictions moved to Appendix A (which states it in full)
+word("Appendix A: four predictions written before their runs", "The four tests of Table~\\ref{tab:prereg} were each written down as a separate\ndocument before their runs",
      all(src(f) for f in ("PREREG_v3.md", "PREREG_v4_fog_ablation.md", "PREREG_v5_dann_lambda.md", "PREREG_v6_tent_hyperparams.md")), cls="design")
-word("introduction: four pre-specified predictions", "two failed, one held,\nand one, first recorded as failed and later reclassified as inconclusive, was met",
+word("Appendix A: two failed, one held, one reclassified", "We first recorded the Wiener prediction as failed,\nbut we now record that first test as inconclusive",
      [m_.group(1).split()[0].rstrip(":.") for m_ in re.finditer(r"\n(?:Wiener|Fog ablation|DANN|TENT)[^&]*&[^&]*&\s*([^&]*?)\s*&", "\n" + _table_rows("tab:prereg"))]
      == ["First", "Failed", "Held", "Failed"])
+_prereg_outcomes = [m_.group(1).split()[0].rstrip(":.") for m_ in re.finditer(r"\n(?:Wiener|Fog ablation|DANN|TENT)[^&]*&[^&]*&\s*([^&]*?)\s*&", "\n" + _table_rows("tab:prereg"))]
+word("Appendix A: ImageNet result moved to the abstract's first evidence", "the rule placed the result in one clause of the abstract; after\nseeing it we made it the abstract's first piece of evidence. The test, its rule and its\noutcome are unchanged",
+     "The abstract gets only one clause" in src("rules/2026-10-21_imagenet_and_single_blur.md").replace("\n  ", " ")
+     and 0 <= BODY.find("Six pretrained ImageNet classifiers never") < BODY.find("On CIFAR-10, fog-trained"))
+word("introduction: predictions and rules written before their runs", "Our main predictions and decision rules were written before their runs",
+     all(src(f) for f in ("PREREG_v3.md", "PREREG_v4_fog_ablation.md", "PREREG_v5_dann_lambda.md", "PREREG_v6_tent_hyperparams.md"))
+     and len(glob.glob(os.path.join(ROOT, "rules", "2026-*.md"))) == 5, cls="design")
+word("introduction: two predictions failed", "including two failed predictions", _prereg_outcomes.count("Failed") == 2)
+word("introduction: what is classical and what is new", "are classical;\nwhat is new here is to apply them along a corruption semigroup",
+     "label{thm:certified}" in BODY and "hansen1974comparison" in BODY, cls="design")
 word("Wiener: first recorded as failed, later inconclusive", "we recorded that test as failed and later\nreclassified it as inconclusive",
      "We first recorded the Wiener prediction as failed" in BODY
      and bool(re.search(r"Wiener[^\n]*&[^&]*&\s*First test: not met at either; inconclusive", _table_rows("tab:prereg"))))
 # "abstract: the CIFAR-10 blur comparison is exploratory" is now part of "abstract: confirmed by a pre-specified single-model rerun"
-word("abstract: confirmed by a pre-specified single-model rerun", "In an\nexploratory comparison confirmed by a pre-specified single-model rerun",
+word("abstract: confirmed by a pre-specified single-model rerun", "In an exploratory blur comparison, confirmed by a pre-specified\nsingle-model rerun",
      F("blur_joint", "outcome") == "replicates" and _unruled)
 word("contribution: the CIFAR-10 blur comparison is exploratory", "In\nan exploratory comparison of two blurs that leave their 15-epoch frozen ResNet-18", _unruled)
 word("conclusion: the excess is visible, its avoidability is not", "only\nProposition~\\ref{prop:equivalence} shows that this excess is avoidable",
