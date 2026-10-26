@@ -1107,7 +1107,7 @@ F["imnet_bn_resnet_042"] = sorted([p["bn_gap"] for m_ in ("resnet50_v1", "resnet
 F["imnet_gap_042"] = {m_: [p["gap"] for p in IMF[m_]["pairs"] if p["v"] == 0.042][0] for m_ in IMF}
 # the rule's floor (first runs): the largest per-seed difference between the two mapped-back members
 F["imnet_floor_max"] = max(p["floor"] for m_ in IMF for p in IMF[m_]["pairs"] if p["informative"])
-# per model, over its informative pairs: the smallest per-seed |gap| and the largest floor (Table 15)
+# per model, over its informative pairs: the smallest per-seed |gap| and the largest floor (Table 16)
 F["imnet_seed_min_abs_gap"] = {m_: min(min(abs(g) for g in p["gaps"]) for p in IMF[m_]["pairs"] if p["informative"]) for m_ in IMF}
 F["imnet_floor_max_model"] = {m_: max(p["floor"] for p in IMF[m_]["pairs"] if p["informative"]) for m_ in IMF}
 # every layer-normalized model's gap exceeds every batch-normalized one's at v >= 0.021, and not below
@@ -1115,12 +1115,16 @@ _gv = lambda m_, v: [p["gap"] for p in IMF[m_]["pairs"] if p["v"] == v][0]
 F["imnet_ln_above_bn_from"] = min(v for v in IM_V if all(min(_gv(l_, w) for l_ in IM_LN) > max(_gv(b_, w) for b_ in IM_BN)
                                                          for w in IM_V if w >= v))
 F["imnet_bn_gap_max_at_042"] = max(_gv(b_, 0.042) for b_ in IM_BN)
-F["imnet_r2_v2_089"] = {"frozen": _gv("resnet50_v2", 0.089),
+# ResNet-50 V2 at v = 0.089 within the shuffled rerun: its frozen gap and its BN-adapt gap
+F["imnet_r2_v2_089"] = {"frozen": [p["gap"] for p in IMR["resnet50_v2"]["pairs"] if p["v"] == 0.089][0],
                         "bnadapt": [p["bn_gap"] for p in IMR["resnet50_v2"]["pairs"] if p["v"] == 0.089][0],
-                        "informative": [p["informative"] for p in IMF["resnet50_v2"]["pairs"] if p["v"] == 0.089][0]}
+                        "informative": [p["informative"] for p in IMR["resnet50_v2"]["pairs"] if p["v"] == 0.089][0]}
 # published top-1 accuracy of the torchvision weights (weights metadata, torchvision 0.29), for the clean-error comparison
 _IM_PUBLISHED_ACC = {"resnet50_v1": 76.130, "resnet50_v2": 80.858, "efficientnet_b0": 77.692,
                      "vit_b_16": 81.072, "convnext_tiny": 82.520, "swin_t": 81.474}
+# informative pairs over all six models (first runs), and those with a positive verified gap
+F["imnet_informative_total"] = sum(p["informative"] for m_ in IMF for p in IMF[m_]["pairs"])
+F["imnet_positive_total"] = sum(p["informative"] and p["positive"] for m_ in IMF for p in IMF[m_]["pairs"])
 F["imnet_clean_above_published"] = {m_: IMF[m_]["clean"] - (1 - _IM_PUBLISHED_ACC[m_] / 100) for m_ in IMF}
 
 # single-model blur pair (frozen model trained on both blurs)

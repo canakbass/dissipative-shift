@@ -624,7 +624,7 @@ word("discussion: zero padding opened a gap", "with zero padding BN-adapt itself
 check("blur pair decomposition", "avoidable gap $\\Delta_{\\text{frozen}}$ is $@$ times larger under deterministic blur\n($@$ against $@$), and BN-adapt recovers $@\\%$ of that gap under\ndeterministic blur but only $@\\%$ under heat-equation blur, a factor of $@$",
       _gd / _gh, _gd, _gh, 100 * _fd, 100 * _fh, _fd / _fh)
 check("abstract: blur ratio", "statistics removes $@$ times as much error under a noise-free\nblur as under a noisy one at similar frozen error", F("blur_ratio_bn"))
-check("abstract: blur factor split", "against a classifier retrained per\nseverity (a recipe-relative reference, loose on images), the noise-free blur's\navoidable error is $@$ times larger", _gd / _gh)
+check("abstract: blur factor split", "against a classifier retrained per\nseverity (a recipe-relative reference), the noise-free blur's\navoidable error is $@$ times larger", _gd / _gh)
 word("abstract: only part of the factor lies in the avoidable error", "the noise-free blur's\navoidable error is $2.1$ times larger",
      1 < _gd / _gh < F("blur_ratio_bn"))
 check("contribution: blur factor split", "the $@$ is a\n$@$-fold larger avoidable gap times a $@$-fold larger\nfraction of that gap recovered", F("blur_ratio_bn"), _gd / _gh, _fd / _fh)
@@ -702,7 +702,8 @@ word("noise curve concave", "along the concave noise\ncurve", F("noise_oracle_co
 word("oracle consistent between fog and noise (main family)", "The oracle thus agrees between fog\nand noise in our main family", F("fog_noise_max_absdiff") < 0.01)
 word("conclusion: oracle agrees between fog and noise", "The oracle agrees\nbetween fog and noise in our main family but is certifiably loose", F("fog_noise_max_absdiff") < 0.01)
 word("conclusion and abstract: loose for the 15-epoch recipe", "certifiably loose on images for our\n15-epoch recipe", F("cert_all_pos") > 0 and F("cert_all_by_joint200") > 0)
-word("abstract: the reference is loose, so recipe-relative", "(a recipe-relative reference, loose on images)", F("cert_all_pos") > 0)
+# round 22: "loose on images" left the abstract for length (Sections 5.4 and 5.5 and the conclusion state it)
+word("abstract: the reference is recipe-relative", "(a recipe-relative reference)", F("cert_all_pos") > 0)
 word("introduction: cross-family alone certifies nothing beyond chance", "cross-family equivalences alone certify nothing beyond chance",
      len(F("cert_dissipative_positive")) <= 2 * F("cert_dissipative_expected_by_chance"))
 diffuse_dev = max(abs(abl[k]["oracle"] - abl[k]["noise_oracle"]) for k in abl if k.startswith("fog_diffuse") and "noise_oracle" in abl[k])
@@ -1309,6 +1310,7 @@ word("all witnesses: what is excluded", "DANN, other runs of the main families a
      "dann" not in _pool and "tent" not in _pool and "eata" not in _pool and "bnadapt" not in _pool.replace("_", ""), cls="design")
 # round 20: the certified-interval paragraph left Section 5.5 (Appendix C gives it in full, with
 # its own checks); removed: "main fog family: log-width near the upper rate", "three rectangles, one per regime"
+check("Section 5.5: the 43 certificates", "gives the witnesses behind the $@$ certificates", F("cert_all_pos"))
 check("other certificates", "The other $@$ use\n15-epoch oracles ($@$ at the same $v$", F("cert_all_by_15epoch"), F("cert_15epoch_same_v"))
 check("other certificates at larger v", "at the same $v$, $@$ at a larger $v$)", F("cert_15epoch_larger_v"))
 word("other certificates are oracles", "use\n15-epoch oracles",
@@ -1379,7 +1381,7 @@ _TIN = "kaggle_tinyimagenet/tin_kaggle.py"
 design("TIN subset", "Tiny-ImageNet ($@$ training and $@$\ntest images at $@\\times@$, one seed,",
        const(_TIN, r"^N_TRAIN_IMG = (\d+)"), const(_TIN, r"^N_TEST_IMG = (\d+)"), const(_TIN, r"^IMG_SIZE = (\d+)"), const(_TIN, r"^IMG_SIZE = (\d+)"))
 word("TIN 100 classes", "on 100 classes of Tiny-ImageNet", const(_TIN, r"^N_CLASSES = (\d+)") == 100, cls="design")
-word("TIN float64 guard", "with corrected normalization statistics\n(Appendix~\\ref{app:corrections}, item~\\ref{corr:saturated})",
+word("TIN float64 guard", "with corrected statistics\n(Appendix~\\ref{app:corrections}, item~\\ref{corr:saturated})",
      "assert np.all((NORM_MEAN > 0.3)" in src(_TIN) and 'dtype=np.float64' in src(_TIN), cls="design")
 _j100 = sorted(F("fj100_pairs"), key=lambda r: r["v"])
 word("c100 joint all four, every seed", "the joint model errs more on the lower-contrast drift member at all four pairs in every seed",
@@ -1430,7 +1432,7 @@ _gapa, _gapb = _ga["frozen"][0] - _ga["oracle"][0], _gb["frozen"][0] - _gb["orac
 check("c100 blur pair", "the blurs leave their frozen models at $@$ and\n$@$ error, and BN-adapt removes $@$ and $@$, a $@$-fold ratio, or\n$@\\%$ and $@\\%$ of the gap to the oracles (oracle errors $@$, $@$)",
       _ga["frozen"][0], _gb["frozen"][0], _ga["bn_removes"][0], _gb["bn_removes"][0], F("c100_blur_ratio_bn"),
       100 * _ga["bn_removes"][0] / _gapa, 100 * _gb["bn_removes"][0] / _gapb, _ga["oracle"][0], _gb["oracle"][0])
-word("c100 blur three seeds", "Both comparisons hold in direction on CIFAR-100 (the blur pair in\nAppendix~\\ref{app:dann}), and the fog gap also in separate\n15-epoch models",
+word("c100 blur three seeds", "Both comparisons hold in direction on CIFAR-100 (blur pair:\nAppendix~\\ref{app:dann}), and the fog gap also in separate\n15-epoch models",
      all(v["n"] == 3 for v in _cb.values()) and all(len(r["d_raw"]) == 3 for r in _j100))
 # =========================================================================== pretrained ImageNet models and the single-model blur pair (21 October)
 _IMS = "kaggle_imnet_fog/imnet_fog.py"
@@ -1483,7 +1485,7 @@ _never_fog = "IMAGENET1K_V1" in _im_src and "optim" not in _im_src and "backward
 _im_all_show = all(_npi[m_] >= 2 for m_ in _IMBN + _IMLN) and len(_IMF) == 6
 _im_bn_ln = {m_: k for m_, (_, _, k) in eval(re.search(r"(?ms)^MODELS = (\{.*?^\})", _im_src).group(1)).items()}
 word("ImageNet: six models, three of each normalization",
-     "six torchvision classifiers, three with batch normalization (ResNet-50 with the V1 and\nV2 weights, EfficientNet-B0) and three with layer normalization (ViT-B/16, ConvNeXt-T,\nSwin-T)",
+     "six torchvision classifiers, three with batch normalization (ResNet-50 with V1 and V2\nweights, EfficientNet-B0) and three with layer normalization (ViT-B/16, ConvNeXt-T,\nSwin-T)",
      [m_ for m_ in _im_bn_ln if _im_bn_ln[m_] == "bn"] == _IMBN and sorted(m_ for m_ in _im_bn_ln if _im_bn_ln[m_] == "ln") == sorted(_IMLN)
      and set(_IMF) == set(_IMBN + _IMLN), cls="design")
 word("ImageNet: frozen, ten images per class, three seeds",
@@ -1523,10 +1525,10 @@ word("ImageNet: every LN gap above every BN gap at v >= 0.021, not below", "ever
      F("imnet_ln_above_bn_from") == 0.021 and max(_g42, key=_g42.get) == "vit_b_16"
      and all(min(p["gap"] for l_ in _IMLN for p in _IMF[l_]["pairs"] if p["v"] == v) > max(p["gap"] for b_ in _IMBN for p in _IMF[b_]["pairs"] if p["v"] == v)
              for v in _imv if v >= 0.021))
-check("ImageNet: inverse map restores", "the drift member errs within\n$@$ of the unmapped diffusion member at every informative pair (seed means; a\ndescriptive comparison outside the rule, whose floor is at most $@$ per seed)",
+check("ImageNet: inverse map restores", "the drift member errs within\n$@$ of the unmapped diffusion member at every informative pair (seed means; a\ndescriptive comparison outside the rule; the rule's floor is at most $@$ per seed)",
       F("imnet_inv_restore_max"), F("imnet_floor_max"), rnd="up")
 _r042 = {m_: [p["bn_gap"] for p in _IMR[m_]["pairs"] if p["v"] == 0.042][0] for m_ in ("resnet50_v1", "resnet50_v2")}
-check("ImageNet: BN-adapt", "shrinks the gaps at $v \\le @$ to at most $@$ and\nEfficientNet-B0's to at most $@$ at every $v$, but leaves $@$ and $@$ in\nResNet-50 V1 and V2 at $v = @$ and raises V2's at $v = @$ from $@$ to\n$@$",
+check("ImageNet: BN-adapt", "shrinks the gaps at $v \\le @$ to at most $@$ and\nEfficientNet-B0's to at most $@$ at every $v$, but leaves $@$ and $@$ in\nResNet-50 V1 and V2 at $v = @$ and raises V2's at $v = @$ from $@$, its\nrerun frozen gap, to $@$",
       0.005, F("imnet_bn_small_v_max"), F("imnet_bn_effnet_max"), _r042["resnet50_v1"], _r042["resnet50_v2"], 0.042,
       0.089, F("imnet_r2_v2_089", "frozen"), F("imnet_r2_v2_089", "bnadapt"), rnd=[None, "up", "up", None, None, None, None, None, None])
 # round 21: the mapped-back comparison is not the rule's floor (that is the gap between the two mapped-back
@@ -1537,17 +1539,18 @@ else:
     PASSES += 1
 word("ImageNet: BN-adapt shrinks the small-v gaps", "shrinks the gaps at",
      all(abs(p["bn_gap"]) < abs(p["gap"]) for m_ in _IMR for p in _IMR[m_]["pairs"] if p["v"] <= 0.005))
-word("ImageNet: BN-adapt raises an informative gap; ResNet-50 zero-padded", "(ResNet-50 pads with zeros; untested)",
+# round 22: the zero-padding analogy was removed (EfficientNet-B0 also pads with zeros and BN-adapt closes its gaps)
+word("ImageNet: BN-adapt raises an informative gap, both from the rerun", "its\nrerun frozen gap",
      F("imnet_r2_v2_089", "informative") and F("imnet_r2_v2_089", "bnadapt") > F("imnet_r2_v2_089", "frozen") > 0
-     and '"resnet50"' in _im_src, cls="design")
+     and math.isclose(F("imnet_r2_v2_089", "frozen"), [p["gap"] for p in _IMR["resnet50_v2"]["pairs"] if p["v"] == 0.089][0]))
 # round 20: "ImageNet: no oracle, models never saw fog" left Section 5.7 for page length; the
 # Limitations sentence (checked below) states both
 word("ImageNet: BN-adapt from the shuffled rerun", "BN-adapt, rerun with shuffled batches",
      "randperm" in _im_src and set(_IMR) == set(_IMBN))
 # abstract, contributions, Section 5.4, discussion, limitations, conclusion
-for _lab, _t in (("abstract", "Six pretrained ImageNet classifiers never trained on\nfog, with batch or layer normalization, also err more on that member"),
+for _lab, _t in (("abstract", "also err more on that member at $32$ of their $33$ informative\npairs, whether they use batch or layer normalization"),
                  ("contributions", "Six pretrained ImageNet classifiers, never trained on fog, show the gap\nwith batch or layer normalization, larger with layer normalization at $v \\ge 0.021$"),
-                 ("conclusion", "six pretrained ImageNet classifiers with batch or\nlayer normalization err more at all but one informative pair"),
+                 ("conclusion", "six pretrained ImageNet classifiers with batch or\nlayer normalization err more at"),
                  ("discussion", "The fog gap also appears in all six pretrained ImageNet classifiers we tested"),
                  ("Section 5.4", "test on pretrained ImageNet models, never trained on fog, partly widened it again:\nthere the gap appears with batch or layer normalization"),
                  ("Appendix B scope", "pre-specified test on pretrained ImageNet models partly widened it\nagain: models never trained on fog show the gap with batch or layer normalization")):
@@ -1555,12 +1558,17 @@ for _lab, _t in (("abstract", "Six pretrained ImageNet classifiers never trained
          and min(_g42[m_] for m_ in _IMLN) > max(_g42[m_] for m_ in _IMBN) and F("imnet_ln_above_bn_from") == 0.021
          and sum(_ninf[m_] - _npi[m_] for m_ in _IMF) == 1)
 check("contributions: LN larger from", "larger with layer normalization at $v \\ge @$", F("imnet_ln_above_bn_from"))
+for _lab, _t in (("abstract", "also err more on that member at $@$ of their $@$ informative"),
+                 ("conclusion", "layer normalization err more at $@$ of their $@$ informative pairs")):
+    check(f"ImageNet in the {_lab}: positive of informative pairs", _t, F("imnet_positive_total"), F("imnet_informative_total"))
+word("abstract: ImageNet models never trained on fog", "Six pretrained ImageNet classifiers, never trained\non fog, also err more on that member", _never_fog)
+check("mechanism: LN larger from", "layer-normalized ImageNet models at $v \\ge @$, whose", F("imnet_ln_above_bn_from"))
 word("Appendix B: the ImageNet rule came later", "Later a pre-specified test on pretrained ImageNet models",
      os.path.exists(os.path.join(ROOT, "rules", "2026-10-21_imagenet_and_single_blur.md")), cls="design")
 word("Appendix A: scope partly widened", "and later partly widened", F("imnet_H1") and not F("imnet_H2"))
 # round 21: "mechanism: BN-adapt closes most of the ImageNet gap at small v" removed with its clause (the
 # ImageNet BN-adapt result is reported in Section 5.7 in both directions)
-word("mechanism: does not cover the layer-normalized gaps", "It does not cover the larger gaps of the pretrained\nlayer-normalized ImageNet models",
+word("mechanism: does not cover the layer-normalized gaps", "It does not cover the larger gaps of the\nlayer-normalized ImageNet models",
      _never_fog and min(_g42[m_] for m_ in _IMLN) > max(_g42[m_] for m_ in _IMBN))
 noted("mechanism: where layer normalization acts", "acts per token (or position) across channels after a patch embedding with a\nbias",
       "torchvision 0.29 source: ViT conv_proj and Swin patch embedding are nn.Conv2d with the default bias, followed by "
@@ -1586,15 +1594,22 @@ word("batch order: same decisions in the rerun", "The rule uses frozen\nerrors, 
 word("batch order: three BN models rerun", "reran the three batch-normalized models", set(_IMR) == set(_IMBN))
 # Table 7 rows
 _summ = src("oct21/summarize.py")
-design("rules: ImageNet, H1 as written", "Transfers (at least $@$ of the $@$ batch-normalized models with a positive verified gap at $@$ or more informative pairs)",
+design("rules: ImageNet, H1 as written", "Transfers (at least $@$ of the $@$ batch-normalized models with a positive verified gap at $\\ge @$ informative pairs)",
        2 if "h1 = len(bn_hits) >= 2" in _summ else -1, len(_IMBN), 2 if "n_pos(m) >= 2]" in _summ else -1)
-check("rules: ImageNet, counts", "informative pairs): held, all $@$. Specific to batch normalization (no layer-normalized model so, and their gaps below half the batch-normalized ones): failed, all $@$ so",
+check("rules: ImageNet, counts", "informative pairs): held, all $@$. Specific to batch normalization (no layer-normalized model doing so, and layer-normalized gaps below half the batch-normalized ones): failed, all $@$ do so",
       sum(_npi[m_] >= 2 for m_ in _IMBN), sum(_npi[m_] >= 2 for m_ in _IMLN))
-word("rules: ImageNet, H2 as written", "and their gaps below half the batch-normalized ones",
+word("rules: ImageNet, H2 as written", "and layer-normalized gaps below half the batch-normalized ones",
      "g_ln < 0.5 * mean(g_bn)" in _summ and "h2 = not ln_hits" in _summ, cls="design")
 word("rules: ImageNet outcome", "held, all $3$. Specific to batch normalization",
      F("imnet_H1") and not F("imnet_H2") and sum(_npi[m_] >= 2 for m_ in _IMBN) == 3 == sum(_npi[m_] >= 2 for m_ in _IMLN))
-word("rules: ImageNet, one negative gap", "failed, all $3$ so. One verified negative gap", sum(len(x) for x in _neg.values()) == 1)
+word("rules: ImageNet, one negative gap", "failed, all $3$ do so. One verified negative gap", sum(len(x) for x in _neg.values()) == 1)
+word("rules: ImageNet, outcome class named", "One verified negative gap. Outcome: transfers, not specific to batch normalization",
+     F("imnet_outcome") == "transfers at scale, not specific to batch normalization")
+# A11: the time column of the ImageNet row, and "the known L_t^{-1}" of Section 5.7
+word("rules: ImageNet rule written before the runs", "Pretrained ImageNet models (Sec.~\\ref{sec:scale}) & Before the runs &",
+     "Status: APPROVED by the user on 21 October 2026" in src("rules/2026-10-21_imagenet_and_single_blur.md"), cls="design")
+word("ImageNet: the inverse map is the known one", "Mapped back by the known $L_t^{-1}$, the drift member",
+     all(x in _im_src for x in ("def fog_t_for_v", "err_inv")), cls="design")
 word("rules caption: ImageNet seeds and informative pairs", "for the pretrained ImageNet models the seeds are noise draws for one fixed model, and only informative pairs count",
      all(_IMF[m_]["seeds"] == [1, 2, 3] for m_ in _IMF) and "informative = all(" in _summ)
 _bj = F("blur_joint")
@@ -1624,6 +1639,12 @@ check("ImageNet table: images", "mean over three noise seeds of one fixed model 
 design("ImageNet table: informative thresholds", "(a member above $@$ error or within $@$ of the clean error)",
        0.95 if "e < 0.95" in src("oct21/summarize.py") else -1, 0.01 if 'clean["err"] + 0.01' in src("oct21/summarize.py") else -1)
 check("ImageNet table: rerun change", "whose largest change of a frozen gap is $@$", F("imnet_r2_max_gap_change"))
+_sj = json.load(open(os.path.join(ROOT, "oct21", "summary.json")))
+word("ImageNet table: what summary.json holds", "per-seed gaps and each pair's largest floor are in \\texttt{oct21/summary.json} of the code archive, and every per-seed error is in the result files",
+     all("gaps" in p and len(p["gaps"]) == 3 and "floor" in p for m_ in _sj["imnet_first"] for p in _sj["imnet_first"][m_]["pairs"])
+     and all("err_inv" in r and r["seed"] in (1, 2, 3) for d_ in _first_dirs + ["swin-t"]
+            for r in load(glob.glob(os.path.join(ROOT, f"oct21/imnet-fog-{d_}/output/*.jsonl"))[0].replace(ROOT + os.sep, ""))
+            if r["family"] != "clean"), cls="design")
 word("ImageNet table: noise draw only", "with noise seeds in place of training seeds, so only against the variation of the noise draw",
      all(_IMF[m_]["seeds"] == [1, 2, 3] for m_ in _IMF), cls="design")
 design("ImageNet table: header v", "Model & error & $@$ & $@$ & $@$ & $@$ & $@$ & $@$ & $|$gap$|$", *_imv)
@@ -1678,7 +1699,8 @@ word("blur pair identified in the main sweep, not pre-specified", "(a comparison
      not any("blur" in l.lower() and not l.startswith("Single-model blur pair") for l in _table_rows("tab:rules").split("\n"))
      and not any("blur" in l and "BN-adapt" in l for l in _table_rows("tab:prereg").split("\n")))
 # round 21: "TENT prediction threshold (main text)" merged into "sweep threshold" (Appendix G states it once)
-word("TENT main prediction failed (main text)", "The prediction failed, and we withdrew the claim",
+design("sweep prediction (Appendix G)", "The sweep's pre-specified prediction, that no configuration would beat\nBN-adapt by more than $@$, failed", 0.01 if "by more than 0.01" in src("PREREG_v6_tent_hyperparams.md") else -1)
+word("TENT main prediction failed (main text)", "failed, and we withdrew the claim",
      bool(re.search(r"TENT sweep[^\n]*No configuration beats BN-adapt[^\n]*& Failed", _table_rows("tab:prereg"))))
 # Adam (one step) against the sweep's best configuration, from the rows of Table 14
 _swrows = [[float(x) for x in re.findall(r"& (0\.\d{4})", r)] for r in _table_rows("tab:sweep").split("\n") if len(re.findall(r"& (0\.\d{4})", r)) == 4]
@@ -1758,7 +1780,7 @@ for m in re.finditer(r"(\$t\s*=\s*0\.25\$,\s*\$0\.5\$\s*and\s*\$1\$)|(\$t = 0\.1
 TOKEN = re.compile(r"(?P<sci>\d+(?:\.\d+)?\\times\s*10\^\{-?\d+\})|(?P<pow>(?<![\d.])\d+\^\{-?\d+\})"
                    r"|(?P<num>(?<![\w.\\{-])-?\d+(?:\{,\}\d{3})*(?:\.\d+)?|(?<=\{)\d+(?:\.\d+)?(?=\}))")
 SKIP_BEFORE = re.compile(r"(\\(?:label|ref|cite\w*|begin|end|includegraphics|input|cmidrule\(lr\)|multicolumn|setlength\{\\tabcolsep\}|renewcommand\{\\arraystretch\}|item)\{?[^}$]*$"
-                         r"|ResNet-$|CIFAR-$|CIFAR-10-$|Tiny-$|\\texttt\{[\d.]*$|L\{$)")
+                         r"|ResNet-$|CIFAR-$|CIFAR-10-$|Tiny-$|\\texttt\{[\d.]*$|L\{$|\\addlinespace\[$)")
 SKIP_AFTER = re.compile(r"^(\\linewidth|pt\}|\}\{c\}|-\d)")
 MATH = [m.span() for m in re.finditer(r"\$[^$]+\$|\\\[.*?\\\]|\\begin\{equation\}.*?\\end\{equation\}"
                                       r"|\\begin\{(?:proposition|corollary)\}.*?\\end\{(?:proposition|corollary)\}", BODY, re.S)]

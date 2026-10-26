@@ -4972,6 +4972,7 @@
   "swin_t": 0.3543,
   "vit_b_16": 0.49043333333333333
  },
+ "imnet_informative_total": 33,
  "imnet_inv_restore_max": 0.02310000000000001,
  "imnet_ln_above_bn_from": 0.021,
  "imnet_n_informative": {
@@ -5001,6 +5002,7 @@
   "vit_b_16": 5
  },
  "imnet_outcome": "transfers at scale, not specific to batch normalization",
+ "imnet_positive_total": 32,
  "imnet_r2": {
   "efficientnet_b0": {
    "clean": 0.23709999999999998,
@@ -5382,7 +5384,7 @@
  "imnet_r2_same_decision": true,
  "imnet_r2_v2_089": {
   "bnadapt": 0.07856666666666667,
-  "frozen": 0.02863333333333336,
+  "frozen": 0.0252,
   "informative": true
  },
  "imnet_seed_min_abs_gap": {
