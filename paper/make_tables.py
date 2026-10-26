@@ -143,7 +143,7 @@ def ms(vals, sign=True):
 
 
 lines = [r"\begin{table}[!htbp]",
-         r"\caption{CIFAR-10, every $\Delta_X(t)$ of the main run (measured avoidable error), mean $\pm$ standard deviation over three seeds; the errors themselves are in the result files of the archive; $\dagger$ marks the labelled training severities of the frozen model and DANN (each DANN model also sees unlabelled images at its target severity). TENT and EATA use the SGD setting (Section~\ref{sec:tent-sweep}). DANN comes from a separate run, paired with the same-seed oracle of the main run; oracles differ between runs by up to $0.027$, and Section~\ref{sec:dann} compares DANN without the oracle. In the control the Bayes risk is flat at the severities used, so the oracle's rise there is slack (Section~\ref{sec:oracle}). At fog $t=4$ the oracle is at $0.84$, near chance ($0.9$).}",
+         r"\caption{CIFAR-10, every $\Delta_X(t)$ of the main run (measured avoidable error), mean $\pm$ standard deviation over three seeds; the errors themselves are in the result files of the archive; $\dagger$ marks the labelled training severities of the frozen model and DANN (each DANN model also sees unlabelled images at its target severity). TENT and EATA use the SGD setting (Section~\ref{sec:adaptation}). DANN comes from a separate run, paired with the same-seed oracle of the main run; oracles differ between runs by up to $0.027$, and Appendix~\ref{app:dann} compares DANN without the oracle. In the control the Bayes risk is flat at the severities used, so the oracle's rise there is slack (Section~\ref{sec:oracle}). At fog $t=4$ the oracle is at $0.84$, near chance ($0.9$).}",
          r"\centering\scriptsize\setlength{\tabcolsep}{2.5pt}",
          r"\begin{tabular}{llrrrrrl}", r"\toprule",
          r"Family & $t$ & $\Delta_{\text{frozen}}$ & $\Delta_{\text{BN-adapt}}$ & $\Delta_{\text{TENT}}$ & $\Delta_{\text{EATA}}$ & $\Delta_{\text{DANN}}$ & \\", r"\midrule"]
@@ -424,21 +424,29 @@ def _imcell(p, key="gap"):
 
 
 _vs = [p["v"] for p in _IMF["resnet50_v1"]["pairs"]]
+
+
+def _imrow(m_):
+    """frozen row: clean error, the gaps, and over the informative pairs the smallest per-seed |gap| and largest floor"""
+    return (f"{_im_names[m_]} & {_hu(_IMF[m_]['clean'], 3)} & " + " & ".join(_imcell(p) for p in _IMF[m_]["pairs"])
+            + f" & {_hu(_facts['imnet_seed_min_abs_gap'][m_], 3)} & {_hu(_facts['imnet_floor_max_model'][m_], 3)}" + r" \\")
+
+
 lines = [r"\begin{table}[!htbp]",
-         r"\caption{Pretrained ImageNet classifiers (torchvision weights) on the matched fog pairs of Section~\ref{sec:fog-ablation}: gap (drift minus diffusion error), mean over three noise seeds on $10{,}000$ validation images (ten per class). The models never saw fog. A star marks a verified gap under the rule of Section~\ref{sec:fog-ablation}, with the inputs mapped back by the known $L_t^{-1}$ as the floor; parentheses mark pairs the rule skips because they are not informative (a member above $0.95$ error or within $0.01$ of the clean error). The BN-adapt rows come from a rerun with shuffled batches, whose largest change of a frozen gap is $" + _hu(_facts["imnet_r2_max_gap_change"], 3) + r"$.}",
+         r"\caption{Pretrained ImageNet classifiers (torchvision weights) on the matched fog pairs of Section~\ref{sec:fog-ablation}: gap (drift minus diffusion error), mean over three noise seeds of one fixed model on $10{,}000$ validation images (ten per class). All six use one preprocessing (short side $256$, centre crop $224$), and their clean errors are $" + _hu(min(_facts["imnet_clean_above_published"].values()), 3) + "$ to $" + _hu(max(_facts["imnet_clean_above_published"].values()), 3) + r"$ above the published ones. The models were never trained on fog. A star marks a gap verified by the rule of Section~\ref{sec:fog-ablation} with noise seeds in place of training seeds, so only against the variation of the noise draw; the floor is the gap between the two members mapped back by the known $L_t^{-1}$. Parentheses mark pairs the rule skips because they are not informative (a member above $0.95$ error or within $0.01$ of the clean error). The last two columns give, over a model's informative pairs, the smallest per-seed $|$gap$|$ and the largest per-seed floor; every per-seed value is in \texttt{oct21/summary.json} of the code archive. The rule is applied to frozen rows only, which come from the first runs (class-ordered batches, except Swin-T). The BN-adapt rows come from a rerun with shuffled batches, whose largest change of a frozen gap is $" + _hu(_facts["imnet_r2_max_gap_change"], 3) + r"$; they carry no stars, take their parentheses from that rerun's frozen errors, and give BN-adapt's clean error.}",
          r"\label{tab:imnet}", r"\centering\scriptsize\setlength{\tabcolsep}{3pt}",
-         r"\begin{tabular}{lccccccc}", r"\toprule",
-         r" & Clean & \multicolumn{6}{c}{Gap at $v =$} \\", r"\cmidrule(lr){3-8}",
-         r"Model & error & " + " & ".join(f"${v:g}$" for v in _vs) + r" \\", r"\midrule",
-         r"\multicolumn{8}{l}{\emph{Batch normalization, frozen}} \\"]
+         r"\begin{tabular}{lccccccccc}", r"\toprule",
+         r" & Clean & \multicolumn{6}{c}{Gap at $v =$} & Min. & Max. \\", r"\cmidrule(lr){3-8}",
+         r"Model & error & " + " & ".join(f"${v:.4f}$" if v < 0.005 else f"${v:.3f}$" for v in _vs) + r" & $|$gap$|$ & floor \\", r"\midrule",
+         r"\multicolumn{10}{l}{\emph{Batch normalization, frozen}} \\"]
 for m_ in ("resnet50_v1", "resnet50_v2", "efficientnet_b0"):
-    lines.append(f"{_im_names[m_]} & {_hu(_IMF[m_]['clean'], 3)} & " + " & ".join(_imcell(p) for p in _IMF[m_]["pairs"]) + r" \\")
-lines.append(r"\multicolumn{8}{l}{\emph{Layer normalization, frozen}} \\")
+    lines.append(_imrow(m_))
+lines.append(r"\multicolumn{10}{l}{\emph{Layer normalization, frozen}} \\")
 for m_ in ("vit_b_16", "convnext_tiny", "swin_t"):
-    lines.append(f"{_im_names[m_]} & {_hu(_IMF[m_]['clean'], 3)} & " + " & ".join(_imcell(p) for p in _IMF[m_]["pairs"]) + r" \\")
-lines.append(r"\multicolumn{8}{l}{\emph{Batch normalization, BN-adapt (rerun)}} \\")
+    lines.append(_imrow(m_))
+lines.append(r"\multicolumn{10}{l}{\emph{Batch normalization, BN-adapt (rerun)}} \\")
 for m_ in ("resnet50_v1", "resnet50_v2", "efficientnet_b0"):
-    lines.append(f"{_im_names[m_]} & {_hu(_IMR[m_]['clean_bnadapt'], 3)} & " + " & ".join(_imcell(p, 'bn_gap') for p in _IMR[m_]["pairs"]) + r" \\")
+    lines.append(f"{_im_names[m_]} & {_hu(_IMR[m_]['clean_bnadapt'], 3)} & " + " & ".join(_imcell(p, 'bn_gap') for p in _IMR[m_]["pairs"]) + r" & & \\")
 lines += [r"\bottomrule", r"\end{tabular}", r"\end{table}"]
 with open(f"{OUT}/imnet_table.tex", "w") as f:
     f.write("\n".join(lines) + "\n")

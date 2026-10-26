@@ -4189,11 +4189,20 @@
  "imnet_H1": true,
  "imnet_H2": false,
  "imnet_bn_effnet_max": 0.004433333333333363,
+ "imnet_bn_gap_max_at_042": 0.1021333333333333,
  "imnet_bn_resnet_042": [
   0.06396666666666669,
   0.07046666666666672
  ],
  "imnet_bn_small_v_max": 0.00936666666666667,
+ "imnet_clean_above_published": {
+  "convnext_tiny": 0.019099999999999895,
+  "efficientnet_b0": 0.014019999999999921,
+  "resnet50_v1": 0.010599999999999943,
+  "resnet50_v2": 0.019180000000000086,
+  "swin_t": 0.017940000000000067,
+  "vit_b_16": 0.009120000000000017
+ },
  "imnet_first": {
   "convnext_tiny": {
    "clean": 0.19389999999999996,
@@ -4946,6 +4955,15 @@
    ]
   }
  },
+ "imnet_floor_max": 0.006299999999999972,
+ "imnet_floor_max_model": {
+  "convnext_tiny": 0.006199999999999983,
+  "efficientnet_b0": 0.005299999999999971,
+  "resnet50_v1": 0.0046000000000000485,
+  "resnet50_v2": 0.0044999999999999485,
+  "swin_t": 0.006299999999999972,
+  "vit_b_16": 0.0043999999999999595
+ },
  "imnet_gap_042": {
   "convnext_tiny": 0.3203666666666667,
   "efficientnet_b0": 0.03250000000000001,
@@ -4955,6 +4973,7 @@
   "vit_b_16": 0.49043333333333333
  },
  "imnet_inv_restore_max": 0.02310000000000001,
+ "imnet_ln_above_bn_from": 0.021,
  "imnet_n_informative": {
   "convnext_tiny": 6,
   "efficientnet_b0": 6,
@@ -5361,6 +5380,19 @@
  },
  "imnet_r2_max_gap_change": 0.005100000000000032,
  "imnet_r2_same_decision": true,
+ "imnet_r2_v2_089": {
+  "bnadapt": 0.07856666666666667,
+  "frozen": 0.02863333333333336,
+  "informative": true
+ },
+ "imnet_seed_min_abs_gap": {
+  "convnext_tiny": 0.01770000000000005,
+  "efficientnet_b0": 0.006700000000000039,
+  "resnet50_v1": 0.05070000000000008,
+  "resnet50_v2": 0.0252,
+  "swin_t": 0.01200000000000001,
+  "vit_b_16": 0.007099999999999995
+ },
  "joint_train_contrast_gap": [
   0.23969212299819861,
   0.951229424500714

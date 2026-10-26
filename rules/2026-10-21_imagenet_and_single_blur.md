@@ -158,7 +158,7 @@ are reported from the `-r2` runs only. The first runs are kept for frozen error,
 two runs are compared and reported (the effect of order and of the noise draw). The
 decision rule and the hypotheses did not change.
 
-## OUTCOME (21 October 2026, 19:00; `python oct21/summarize.py`, details in `oct21/summary.json`)
+## OUTCOME (21 October 2026, 19:00 (completed 19:25 after the ResNet-50 V2 rerun); `python oct21/summarize.py`, details in `oct21/summary.json`)
 
 **Experiment 1, outcome class: "transfers at scale, not specific to batch normalization"
 (H1 held, H2 failed).**

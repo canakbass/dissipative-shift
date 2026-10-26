@@ -32,6 +32,10 @@ def build(account, name):
             src = src.replace(old, new)
         datasets, desc = [], f"seed={seed} job=blur_joint"
     d = os.path.join(HERE, name)
+    if os.path.isdir(os.path.join(d, "output")):
+        # a kernel that has run keeps the script it ran with (21 October: rebuilding after the
+        # shuffle fix overwrote five first-run scripts; they were restored by hand)
+        return f"{account:<11} {name:<28} (has run, left as run)"
     os.makedirs(d, exist_ok=True)
     for f in os.listdir(d):
         if f.endswith(".py"):

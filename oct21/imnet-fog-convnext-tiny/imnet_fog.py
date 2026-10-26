@@ -151,11 +151,6 @@ def main():
     print(f"device: {DEVICE}, model: {MODEL}, smoke: {SMOKE}", flush=True)
     os.makedirs(OUT, exist_ok=True)
     imgs, labels = load_images()
-    # the files are read class by class; a fixed shuffle (seed 0) makes every batch of 200 a
-    # mix of classes, which BN-adapt needs (its statistics come from the batch). The frozen
-    # model's per-image errors do not depend on the order.
-    perm = torch.randperm(imgs.shape[0], generator=torch.Generator().manual_seed(0))
-    imgs, labels = imgs[perm], labels[perm]
     model, kind = build_model()
     models = {"frozen": model}
     if kind == "bn":
